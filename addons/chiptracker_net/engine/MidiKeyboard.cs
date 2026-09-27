@@ -36,7 +36,15 @@ namespace ChiptrackerNet.Engine
     // per physical device (see AkaiMPKMini4) and override the mapping
     // methods below to match that device's note/CC layout. Assign an
     // instance to ChiptrackerMidiNode.KeyboardProfile.
+    //
+    // [GlobalClass] is safe in this project only (no GDScript addon here to
+    // collide with -- see feedback_godot_csharp_globalclass_collision in
+    // memory, which is about the dual GD/.NET project this was split from).
+    // Without it, ChiptrackerMidiNode.KeyboardProfile's Inspector picker
+    // can't narrow to MidiKeyboard/AkaiMPKMini4 and falls back to listing
+    // every Resource-derived class Godot knows.
     [Tool]
+    [GlobalClass]
     public partial class MidiKeyboard : Resource
     {
         [Export] public string DeviceName { get; set; } = "";

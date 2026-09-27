@@ -9,7 +9,9 @@ namespace ChiptrackerNet.Engine
     // The Akai MIDI Editor lets you remap knobs/pads to different CC
     // numbers or channels -- if your program differs, update KnobCc (or
     // override HandleControlChange/AcceptsChannel) to match.
+    // [GlobalClass] is safe in this project only -- see MidiKeyboard.cs.
     [Tool]
+    [GlobalClass]
     public partial class AkaiMPKMini4 : MidiKeyboard
     {
         // K1-K8, DIVISION..BPM (see MidiKeyboardMap.md)
