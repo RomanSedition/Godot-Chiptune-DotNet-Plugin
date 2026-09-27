@@ -1,16 +1,33 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://u08lllhyy6xm"]
 
-[ext_resource type="Script" path="res://addons/chiptracker_net/engine/ChiptrackerSongNode.cs" id="1_song"]
-[ext_resource type="Script" path="res://addons/chiptracker_net/engine/ChiptrackerMidiNode.cs" id="2_midi"]
-[ext_resource type="Script" path="res://addons/chiptracker_net/engine/AkaiMPKMini4.cs" id="3_akai"]
+[ext_resource type="Script" uid="uid://bs541poads7l7" path="res://addons/chiptracker_net/engine/ChiptrackerSongNode.cs" id="1_song"]
+[ext_resource type="Script" uid="uid://fkhoak7ffhxw" path="res://addons/chiptracker_net/engine/Channel.cs" id="2_ei3lx"]
+[ext_resource type="Script" uid="uid://bierw181k6xwu" path="res://addons/chiptracker_net/engine/ChiptrackerMidiNode.cs" id="2_midi"]
+[ext_resource type="Script" uid="uid://bbdf0grx3hwjp" path="res://addons/chiptracker_net/engine/AkaiMPKMini4.cs" id="3_akai"]
+[ext_resource type="Script" uid="uid://sbm6ie3s0lo8" path="res://addons/chiptracker_net/engine/ChannelGroup.cs" id="3_smx0k"]
+[ext_resource type="Script" uid="uid://b56h1bhrtuhfe" path="res://addons/chiptracker_net/engine/Instrument.cs" id="4_jyokg"]
+[ext_resource type="Script" uid="uid://c4v0u6v8krpta" path="res://addons/chiptracker_net/engine/Pattern.cs" id="5_j48tf"]
+[ext_resource type="Script" uid="uid://dr6d64cvmmtg0" path="res://addons/chiptracker_net/engine/Song.cs" id="6_r3ywa"]
 
-[sub_resource type="Resource" id="Resource_akai"]
+[sub_resource type="Resource" id="Resource_cbj20"]
+script = ExtResource("3_smx0k")
+
+[sub_resource type="Resource" id="Resource_7m3qp"]
+script = ExtResource("6_r3ywa")
+Groups = Array[ExtResource("3_smx0k")]([SubResource("Resource_cbj20")])
+metadata/_custom_type_script = "uid://dr6d64cvmmtg0"
+
+[sub_resource type="Resource" id="Resource_sd8yx"]
 script = ExtResource("3_akai")
+DeviceName = "Akai MPK Mini mk4"
+metadata/_custom_type_script = "uid://bbdf0grx3hwjp"
 
-[node name="ChiptrackerSongNode" type="Node"]
+[node name="ChiptrackerSongNode" type="Node" unique_id=1544729047]
 script = ExtResource("1_song")
+Song = SubResource("Resource_7m3qp")
+metadata/_custom_type_script = "uid://bs541poads7l7"
 
-[node name="ChiptrackerMidiNode" type="Node" parent="."]
+[node name="ChiptrackerMidiNode" type="Node" parent="." unique_id=16753056]
 script = ExtResource("2_midi")
-KeyboardProfile = SubResource("Resource_akai")
-Enabled = true
+KeyboardProfile = SubResource("Resource_sd8yx")
+metadata/_custom_type_script = "uid://bierw181k6xwu"
