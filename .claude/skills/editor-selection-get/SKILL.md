@@ -14,7 +14,7 @@ Get the current node selection in the Godot editor as structured data: the selec
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-selection-get \
+curl -X POST http://localhost:29649/api/tools/editor-selection-get \
   -H "Content-Type: application/json" \
   -d '{
   "nothing": "string_value"
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-selection-get \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/editor-selection-get -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/editor-selection-get -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-selection-get \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-selection-get \
+curl -X POST http://localhost:29649/api/tools/editor-selection-get \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

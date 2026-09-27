@@ -14,7 +14,7 @@ Get the scene-tree of the currently edited Godot scene as a structured Node hier
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/scene-get-data \
+curl -X POST http://localhost:29649/api/tools/scene-get-data \
   -H "Content-Type: application/json" \
   -d '{
   "hierarchyDepth": 0
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/scene-get-data \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/scene-get-data -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/scene-get-data -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/scene-get-data \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/scene-get-data \
+curl -X POST http://localhost:29649/api/tools/scene-get-data \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

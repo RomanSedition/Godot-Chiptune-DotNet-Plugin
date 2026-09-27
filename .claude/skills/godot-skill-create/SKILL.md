@@ -104,7 +104,7 @@ One `[AiToolType] partial class Tool_<Family>` per family, one tool method per p
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-create \
+curl -X POST http://localhost:29649/api/system-tools/godot-skill-create \
   -H "Content-Type: application/json" \
   -d '{
   "path": "string_value",
@@ -116,7 +116,7 @@ curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-create \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-create -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/system-tools/godot-skill-create -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -124,7 +124,7 @@ curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-create \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-create \
+curl -X POST http://localhost:29649/api/system-tools/godot-skill-create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

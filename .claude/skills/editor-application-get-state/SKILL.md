@@ -14,7 +14,7 @@ Return the current run/play state of the Godot editor: whether a scene is curren
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-application-get-state \
+curl -X POST http://localhost:29649/api/tools/editor-application-get-state \
   -H "Content-Type: application/json" \
   -d '{
   "nothing": "string_value"
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-application-get-state \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/editor-application-get-state -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/editor-application-get-state -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-application-get-state \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-application-get-state \
+curl -X POST http://localhost:29649/api/tools/editor-application-get-state \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

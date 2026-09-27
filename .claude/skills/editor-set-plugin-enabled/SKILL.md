@@ -14,7 +14,7 @@ Enable or disable an editor plugin (an addons/<name>/ folder with a plugin.cfg) 
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-set-plugin-enabled \
+curl -X POST http://localhost:29649/api/tools/editor-set-plugin-enabled \
   -H "Content-Type: application/json" \
   -d '{
   "plugin": "string_value",
@@ -26,7 +26,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-set-plugin-enabled \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/editor-set-plugin-enabled -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/editor-set-plugin-enabled -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -34,7 +34,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/editor-set-plugin-enabled \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/editor-set-plugin-enabled \
+curl -X POST http://localhost:29649/api/tools/editor-set-plugin-enabled \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

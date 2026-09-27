@@ -27,7 +27,7 @@ C# ('.cs') files are NOT validated here (Godot has no in-editor C# compiler to r
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/script-validate \
+curl -X POST http://localhost:29649/api/tools/script-validate \
   -H "Content-Type: application/json" \
   -d '{
   "scriptPath": "string_value"
@@ -38,7 +38,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/script-validate \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/script-validate -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/script-validate -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -46,7 +46,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/script-validate \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/script-validate \
+curl -X POST http://localhost:29649/api/tools/script-validate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

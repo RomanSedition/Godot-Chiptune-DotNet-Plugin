@@ -14,7 +14,7 @@ Create a new Godot scene asset at a res://*.tscn path and open it as the active 
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/scene-create \
+curl -X POST http://localhost:29649/api/tools/scene-create \
   -H "Content-Type: application/json" \
   -d '{
   "resourcePath": "string_value",
@@ -27,7 +27,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/scene-create \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/scene-create -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/scene-create -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -35,7 +35,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/scene-create \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/scene-create \
+curl -X POST http://localhost:29649/api/tools/scene-create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

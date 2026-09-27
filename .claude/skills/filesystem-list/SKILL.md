@@ -14,7 +14,7 @@ Browse the Godot project's res:// filesystem one directory at a time. Pass a 'pa
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/filesystem-list \
+curl -X POST http://localhost:29649/api/tools/filesystem-list \
   -H "Content-Type: application/json" \
   -d '{
   "path": "string_value"
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/filesystem-list \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/filesystem-list -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/filesystem-list -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/filesystem-list \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/filesystem-list \
+curl -X POST http://localhost:29649/api/tools/filesystem-list \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

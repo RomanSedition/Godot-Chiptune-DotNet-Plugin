@@ -14,7 +14,7 @@ Read a Godot script file (C# '.cs' or GDScript '.gd') under res:// and return it
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/script-read \
+curl -X POST http://localhost:29649/api/tools/script-read \
   -H "Content-Type: application/json" \
   -d '{
   "scriptPath": "string_value",
@@ -27,7 +27,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/script-read \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/script-read -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/script-read -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -35,7 +35,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/script-read \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/script-read \
+curl -X POST http://localhost:29649/api/tools/script-read \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

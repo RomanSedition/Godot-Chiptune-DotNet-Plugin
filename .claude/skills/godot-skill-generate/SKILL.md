@@ -26,7 +26,7 @@ Note that the addon ALSO auto-generates skills on plugin boot when the dock's "A
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-generate \
+curl -X POST http://localhost:29649/api/system-tools/godot-skill-generate \
   -H "Content-Type: application/json" \
   -d '{
   "path": "string_value"
@@ -37,7 +37,7 @@ curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-generate \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-generate -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/system-tools/godot-skill-generate -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -45,7 +45,7 @@ curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-generate \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/system-tools/godot-skill-generate \
+curl -X POST http://localhost:29649/api/system-tools/godot-skill-generate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

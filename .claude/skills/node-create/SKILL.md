@@ -21,7 +21,7 @@ When both are supplied, 'instanceScenePath' wins. Optionally pass 'parentNodeRef
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/node-create \
+curl -X POST http://localhost:29649/api/tools/node-create \
   -H "Content-Type: application/json" \
   -d '{
   "name": "string_value",
@@ -36,7 +36,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/node-create \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/node-create -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/node-create -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -44,7 +44,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/node-create \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/node-create \
+curl -X POST http://localhost:29649/api/tools/node-create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

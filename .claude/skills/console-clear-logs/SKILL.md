@@ -14,7 +14,7 @@ Clear the captured Godot-MCP log cache (read by 'console-get-logs'). Useful for 
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/console-clear-logs \
+curl -X POST http://localhost:29649/api/tools/console-clear-logs \
   -H "Content-Type: application/json" \
   -d '{
   "nothing": "string_value"
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/console-clear-logs \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/console-clear-logs -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/console-clear-logs -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/console-clear-logs \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/console-clear-logs \
+curl -X POST http://localhost:29649/api/tools/console-clear-logs \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

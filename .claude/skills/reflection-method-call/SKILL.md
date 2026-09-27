@@ -26,7 +26,7 @@ An argument whose value cannot be read is an ERROR — the method is never invok
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/reflection-method-call \
+curl -X POST http://localhost:29649/api/tools/reflection-method-call \
   -H "Content-Type: application/json" \
   -d '{
   "filter": "string_value",
@@ -44,7 +44,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/reflection-method-call \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/reflection-method-call -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/reflection-method-call -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -52,7 +52,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/reflection-method-call \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/reflection-method-call \
+curl -X POST http://localhost:29649/api/tools/reflection-method-call \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

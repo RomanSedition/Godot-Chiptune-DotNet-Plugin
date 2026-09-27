@@ -14,7 +14,7 @@ Capture the Godot editor's main viewport (the 3D or 2D editing surface) and retu
 Execute this tool directly via the MCP Plugin HTTP API:
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/screenshot-viewport \
+curl -X POST http://localhost:29649/api/tools/screenshot-viewport \
   -H "Content-Type: application/json" \
   -d '{
   "mode": "string_value"
@@ -25,7 +25,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/screenshot-viewport \
 >
 > Or pipe via stdin:
 > ```bash
-> curl -X POST https://ai-game.dev/mcp/api/tools/screenshot-viewport -H "Content-Type: application/json" -d @- <<'EOF'
+> curl -X POST http://localhost:29649/api/tools/screenshot-viewport -H "Content-Type: application/json" -d @- <<'EOF'
 > {"param": "value"}
 > EOF
 > ```
@@ -33,7 +33,7 @@ curl -X POST https://ai-game.dev/mcp/api/tools/screenshot-viewport \
 #### With Authorization (if required)
 
 ```bash
-curl -X POST https://ai-game.dev/mcp/api/tools/screenshot-viewport \
+curl -X POST http://localhost:29649/api/tools/screenshot-viewport \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
