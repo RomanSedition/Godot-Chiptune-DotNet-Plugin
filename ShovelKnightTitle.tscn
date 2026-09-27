@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://mwm2j4bmf00m"]
+
+[ext_resource type="Script" uid="uid://bs541poads7l7" path="res://addons/chiptracker_net/engine/ChiptrackerSongNode.cs" id="1_3plki"]
+[ext_resource type="Resource" path="res://ShovelKnightTitle_song.tres" id="2_16t4m"]
+[ext_resource type="Script" uid="uid://bierw181k6xwu" path="res://addons/chiptracker_net/engine/ChiptrackerMidiNode.cs" id="3_puc0e"]
+[ext_resource type="Script" uid="uid://bbdf0grx3hwjp" path="res://addons/chiptracker_net/engine/AkaiMPKMini4.cs" id="4_67vof"]
+
+[sub_resource type="Resource" id="Resource_sd8yx"]
+script = ExtResource("4_67vof")
+DeviceName = "Akai MPK Mini mk4"
+metadata/_custom_type_script = "uid://bbdf0grx3hwjp"
+
+[node name="ChiptrackerSongNode" type="Node" unique_id=1544729047]
+script = ExtResource("1_3plki")
+Song = ExtResource("2_16t4m")
+metadata/_custom_type_script = "uid://bs541poads7l7"
+
+[node name="ChiptrackerMidiNode" type="Node" parent="." unique_id=16753056]
+script = ExtResource("3_puc0e")
+KeyboardProfile = SubResource("Resource_sd8yx")
+metadata/_custom_type_script = "uid://bierw181k6xwu"
