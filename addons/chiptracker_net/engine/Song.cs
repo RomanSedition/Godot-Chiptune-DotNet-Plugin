@@ -4,7 +4,14 @@ using Godot.Collections;
 namespace ChiptrackerNet.Engine
 {
     // C# counterpart of addons/chiptracker/engine/song.gd.
+    //
+    // [GlobalClass] is safe in this project only (no GDScript addon here to
+    // collide with -- see feedback_godot_csharp_globalclass_collision in
+    // memory, which is about the dual GD/.NET project this was split from).
+    // Without it, ChiptrackerSongNode.Song's Inspector header just shows
+    // the generic "Resource" type instead of "Song".
     [Tool]
+    [GlobalClass]
     public partial class Song : Resource
     {
         [Export] public int Tempo { get; set; } = 120; // BPM
