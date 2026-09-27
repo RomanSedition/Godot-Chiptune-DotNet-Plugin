@@ -10,13 +10,13 @@ config_version=5
 
 [application]
 
-config/name="ChipTracke .Net"
+config/name="ChipTracker .Net"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
-ChiptrackerNetBridge="*res://addons/chiptracker_net/bridge/McpBridge.cs"
+ChiptrackerNetBridge="*uid://7ourpuhbgan"
 
 [dotnet]
 
