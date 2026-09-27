@@ -20,7 +20,6 @@ namespace ChiptrackerNet.UI
         [Signal] public delegate void EditModeToggledEventHandler(bool enabled);
         [Signal] public delegate void RecordToggledEventHandler(bool enabled);
         [Signal] public delegate void RecordLatencyChangedEventHandler(float milliseconds);
-        [Signal] public delegate void CountInToggledEventHandler(bool enabled);
         [Signal] public delegate void ExportRequestedEventHandler();
         [Signal] public delegate void UndoRequestedEventHandler();
         [Signal] public delegate void RedoRequestedEventHandler();
@@ -42,7 +41,6 @@ namespace ChiptrackerNet.UI
 
         Button _recordButton;
         SpinBox _latencySpin;
-        CheckBox _countInCheck;
 
         Cell _cell;
         bool _updating;
@@ -157,21 +155,9 @@ namespace ChiptrackerNet.UI
             _latencySpin.Connect(Range.SignalName.ValueChanged, new Callable(this, MethodName.OnRecordLatencyChanged));
             parent.AddChild(_latencySpin);
             parent.MoveChild(_latencySpin, _recordButton.GetIndex() + 1);
-
-            _countInCheck = new CheckBox
-            {
-                Text = "Count-in",
-                FocusMode = FocusModeEnum.None,
-                TooltipText = "Before a recording pass, play one bar of clicks first.\nApplies when you press Record (if nothing is playing) or Play while recording. The pass then starts from the top of the pattern.",
-            };
-            _countInCheck.Connect(BaseButton.SignalName.Toggled, new Callable(this, MethodName.OnCountInToggled));
-            parent.AddChild(_countInCheck);
-            parent.MoveChild(_countInCheck, _latencySpin.GetIndex() + 1);
         }
 
         public void SetRecordLatency(float milliseconds) => _latencySpin.SetValueNoSignal(milliseconds);
-
-        public void SetCountIn(bool enabled) => _countInCheck.SetPressedNoSignal(enabled);
 
         public void ToggleEditMode() => _editModeButton.ButtonPressed = !_editModeButton.ButtonPressed;
 
@@ -274,7 +260,6 @@ namespace ChiptrackerNet.UI
         }
 
         void OnRecordLatencyChanged(double value) => EmitSignal(SignalName.RecordLatencyChanged, (float)value);
-        void OnCountInToggled(bool enabled) => EmitSignal(SignalName.CountInToggled, enabled);
     }
 }
 #endif

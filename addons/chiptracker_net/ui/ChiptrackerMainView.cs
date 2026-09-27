@@ -75,6 +75,9 @@ namespace ChiptrackerNet.UI
             _transportBar.Connect(TransportBar.SignalName.TempoChanged, new Callable(this, MethodName.OnTempoChanged));
             _transportBar.Connect(TransportBar.SignalName.RowsPerPatternChanged, new Callable(this, MethodName.OnRowsPerPatternChanged));
             _transportBar.Connect(TransportBar.SignalName.TapTempoPressed, new Callable(this, MethodName.OnTapTempo));
+            _countIn = LoadCountIn();
+            _transportBar.SetCountIn(_countIn);
+            _transportBar.Connect(TransportBar.SignalName.CountInToggled, new Callable(this, MethodName.OnCountInToggled));
 
             _patternGrid.Connect(PatternGrid.SignalName.CellSelected, new Callable(this, MethodName.OnCellSelected));
             _patternGrid.Connect(PatternGrid.SignalName.OctaveChanged, new Callable(_transportBar, TransportBar.MethodName.SetOctave));
@@ -93,9 +96,6 @@ namespace ChiptrackerNet.UI
             _recordLatencyMs = LoadRecordLatency();
             _cellEditor.SetRecordLatency(_recordLatencyMs);
             _cellEditor.Connect(CellEditor.SignalName.RecordLatencyChanged, new Callable(this, MethodName.OnRecordLatencyChanged));
-            _countIn = LoadCountIn();
-            _cellEditor.SetCountIn(_countIn);
-            _cellEditor.Connect(CellEditor.SignalName.CountInToggled, new Callable(this, MethodName.OnCountInToggled));
             _cellEditor.Connect(CellEditor.SignalName.UndoRequested, new Callable(this, MethodName.OnUndoPressed));
             _cellEditor.Connect(CellEditor.SignalName.RedoRequested, new Callable(this, MethodName.OnRedoPressed));
             _cellEditor.Connect(CellEditor.SignalName.ExportRequested, new Callable(this, MethodName.OnExportRequested));

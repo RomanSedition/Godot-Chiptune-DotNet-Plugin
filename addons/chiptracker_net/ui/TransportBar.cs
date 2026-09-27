@@ -23,6 +23,7 @@ namespace ChiptrackerNet.UI
         [Signal] public delegate void TempoChangedEventHandler(int tempo);
         [Signal] public delegate void RowsPerPatternChangedEventHandler(int rows);
         [Signal] public delegate void TapTempoPressedEventHandler();
+        [Signal] public delegate void CountInToggledEventHandler(bool enabled);
 
         static readonly Color CacheCleanColor = new Color(1.0f, 0.65f, 0.1f);
         static readonly Color CacheDirtyColor = new Color(1f, 1f, 1f);
@@ -36,6 +37,7 @@ namespace ChiptrackerNet.UI
         internal Label _octaveLabel;
         Label _statusLabel;
         SpinBox _stepSpin;
+        CheckBox _countInCheck;
 
         bool _updating;
         internal bool _cacheClean;
@@ -73,6 +75,7 @@ namespace ChiptrackerNet.UI
 
             BuildTapTempoButton();
             BuildStepSpin();
+            BuildCountInCheck();
             UpdatePlayIconColor();
         }
 
@@ -110,6 +113,25 @@ namespace ChiptrackerNet.UI
         }
 
         public int GetCursorStep() => _stepSpin != null ? Mathf.Max((int)_stepSpin.Value, 0) : 0;
+
+        // Moved up here from CellEditor's row (which was overflowing/getting
+        // clipped in a narrow dock) into the space StatusLabel's expand-fill
+        // leaves free on this row.
+        void BuildCountInCheck()
+        {
+            _countInCheck = new CheckBox
+            {
+                Text = "Count-in",
+                FocusMode = FocusModeEnum.None,
+                TooltipText = "Before a recording pass, play one bar of clicks first.\nApplies when you press Record (if nothing is playing) or Play while recording. The pass then starts from the top of the pattern.",
+            };
+            _countInCheck.Connect(BaseButton.SignalName.Toggled, new Callable(this, MethodName.OnCountInToggled));
+            var parent = _statusLabel.GetParent();
+            parent.AddChild(_countInCheck);
+            parent.MoveChild(_countInCheck, _statusLabel.GetIndex());
+        }
+
+        public void SetCountIn(bool enabled) => _countInCheck.SetPressedNoSignal(enabled);
 
         // "Deep Sea" toolbar band -- same shade used for the dock's column
         // header/button bands.
@@ -170,6 +192,7 @@ namespace ChiptrackerNet.UI
         void OnStopButtonPressed() => EmitSignal(SignalName.StopPressed);
         void OnLoopButtonToggled(bool pressed) => EmitSignal(SignalName.LoopToggled, pressed);
         void OnTapTempoButtonPressed() => EmitSignal(SignalName.TapTempoPressed);
+        void OnCountInToggled(bool enabled) => EmitSignal(SignalName.CountInToggled, enabled);
 
         void OnTempoChanged(double value)
         {
