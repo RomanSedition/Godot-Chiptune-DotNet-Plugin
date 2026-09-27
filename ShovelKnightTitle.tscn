@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://mwm2j4bmf00m"]
 
 [ext_resource type="Script" uid="uid://bs541poads7l7" path="res://addons/chiptracker_net/engine/ChiptrackerSongNode.cs" id="1_3plki"]
-[ext_resource type="Resource" path="res://ShovelKnightTitle_song.tres" id="2_16t4m"]
+[ext_resource type="Resource" uid="uid://6s7yltbbeydm" path="res://ShovelKnightTitle_song.tres" id="2_16t4m"]
 [ext_resource type="Script" uid="uid://bierw181k6xwu" path="res://addons/chiptracker_net/engine/ChiptrackerMidiNode.cs" id="3_puc0e"]
 [ext_resource type="Script" uid="uid://bbdf0grx3hwjp" path="res://addons/chiptracker_net/engine/AkaiMPKMini4.cs" id="4_67vof"]
 

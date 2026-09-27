@@ -58,12 +58,22 @@ script = ExtResource("2_group")
 script = ExtResource("2_group")
 Name = "Percussion"
 
+[sub_resource type="Resource" id="Resource_5ebn4"]
+script = ExtResource("3_instrument")
+DutyCycle = 0.67
+Envelope = Array[float]([1.0, 1.0, 1.0, 1.0])
+PitchEnvelope = Array[float]([0.08900808, -0.16544443, 0.034789104, 0.13941269, -0.13910758, -0.035322573, 0.16553846, -0.08854508, -0.099282846, 0.1628354, -0.02256222, -0.14595287])
+PitchEnvelopeTimes = Array[float]([0.0, 0.09090909, 0.18181819, 0.27272728, 0.36363637, 0.45454547, 0.54545456, 0.6363636, 0.72727275, 0.8181818, 0.90909094, 1.0])
+PitchRange = 1
+
 [sub_resource type="Resource" id="Resource_4m5mf"]
 script = ExtResource("3_instrument")
 Id = 12
 Name = "(GEN) VRC7 Trumpet"
-DutyCycle = 0.2
+DutyCycle = 0.34
 Envelope = Array[float]([1.0, 1.0, 0.9, 0.7])
+PitchEnvelope = Array[float]([0.0, 0.0, 0.0, 0.0])
+Layers = Array[ExtResource("3_instrument")]([SubResource("Resource_5ebn4")])
 
 [sub_resource type="Resource" id="Resource_fhrox"]
 script = ExtResource("3_instrument")
