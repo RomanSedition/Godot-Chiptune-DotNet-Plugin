@@ -38,48 +38,11 @@ model either, so a `.fur` transcription can match volume but not those.
 
 ### Playback performance: closing the gap with standalone trackers
 
-Raised after chasing several real timing/stutter bugs in the M6/M7
-playback path (buffer-length prefill skip, bursty buffer-availability
-fills, pacing-carry loss under backpressure — see git history around
-`PlaybackEngine._process()`). All of those are now fixed and a
-`Song.total_duration_sec()` + `tests/timing_regression_test.gd` pair
-exists to catch regressions automatically. The ideas below are about
-closing the *remaining*, more fundamental gap with how standalone
-trackers (FamiTracker, OpenMPT, Renoise, DefleMask, etc.) architect
-audio, not about a known bug:
-
-- **Move sample generation off the main thread.** Everything today —
-  mixing, sequencing, grid redraws, MCP polling — runs on Godot's single
-  main thread inside `_process()`. Standalone trackers run mixing on a
-  dedicated high-priority OS audio callback thread, fully isolated from
-  UI work, so a slow redraw or dialog can never cause an audio glitch.
-  Doing the same here (a Godot `Thread` for `PlaybackState.advance_sample()`
-  generation, feeding the `AudioStreamGeneratorPlayback` ring buffer)
-  would be the single biggest robustness win, but introduces real
-  thread-safety risk: the `Song`/`Cell` data being edited on the main
-  thread while a background thread reads it for playback needs a
-  locking or snapshot strategy that doesn't exist yet.
-- **Streaming/block-based synthesis instead of generate-ahead-of-time.**
-  `Synth.generate_buffer()` synthesizes a triggered note's *entire*
-  duration synchronously in one call the instant it starts, which
-  concentrates CPU cost into a spike at row boundaries (worse the more
-  channels trigger notes on the same row) instead of spreading it evenly
-  over time. Real synthesis engines compute audio in small fixed-size
-  blocks (e.g. 64-128 samples) continuously regardless of note
-  triggers. Would smooth out exactly the kind of dense-arrangement
-  stutter observed with the 6-channel/64-row stress-test song.
-  Meaningfully larger change than the thread move above — touches the
-  whole Synth/PlaybackState contract, not just where generation runs.
-- **Not planned: hand-vectorized/SIMD mixing, or rewriting the mixing
-  loop in GDExtension/C++.** Would close the "compiled vs. interpreted"
-  performance gap (GDScript is roughly one to two orders of magnitude
-  slower than the C/C++ real trackers use for this), but is a much
-  bigger commitment (a native build step, per-platform binaries) for a
-  project that's explicitly meant to be a drop-in, pure-GDScript addon
-  (see "Portability / exportability"). Only worth reconsidering if the
-  thread move + streaming synthesis above turn out not to be enough. See
-  the C#/.NET alternative below for a lighter way to close roughly the
-  same gap.
+Both ideas here (sample generation off the main thread, and streaming
+synthesis instead of generate-ahead-of-time) have been built — moved
+out of this section and into "Playback performance (M10)" below. SIMD/
+GDExtension mixing remains explicitly not planned, and is now even less
+likely to be needed.
 
 ### C#/.NET as an alternative implementation (dual-track plan)
 
@@ -1121,8 +1084,11 @@ timing during actual playback.
 - **Leaving Edit mode triggers a full cache rebuild** (every pattern
   referenced by `order_list`) — a clean, deliberate signal that active
   note-entry has paused. After that, full Play and cursor-start
-  playback always stream the cached version instead of live-
-  synthesizing. Starting from the cursor is a sample-offset lookup:
+  playback stream the cached version instead of live-synthesizing.
+  (Superseded in part by M10: leaving Edit mode is now the *only*
+  rebuild trigger, and Play streams the cache only when it's clean —
+  see "Play never rebuilds" there.) Starting from the cursor is a
+  sample-offset lookup:
   `row_index * samples_per_row`, extended to a cumulative per-pattern
   offset table across `order_list` (same approach
   `Song.total_duration_sec()` already uses to sum per-pattern

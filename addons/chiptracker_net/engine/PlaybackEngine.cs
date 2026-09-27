@@ -46,6 +46,16 @@ namespace ChiptrackerNet.Engine
         public void Setup(Song song, AudioStreamPlayer player)
         {
             _player = player;
+            // Dropped along with the State they were subscribed for. These
+            // events live on this Node, which outlives any single pass,
+            // while every subscriber attaches right after a Setup() and
+            // means them for that pass only -- bar preview's stop-at-
+            // bar-end lambda most of all, which would otherwise survive to
+            // stop the *next* Play on its first row. Before generation
+            // moved to a thread these hung off State, so a fresh Setup()
+            // dropped them for free; clearing here keeps that lifetime.
+            RowAdvanced = null;
+            Finished = null;
             State = new PlaybackState(song, Loop);
             State.RowAdvanced += (orderIndex, rowIndex) => CallDeferred(MethodName.RaiseRowAdvanced, orderIndex, rowIndex);
             State.Finished += () => CallDeferred(MethodName.RaiseFinished);
