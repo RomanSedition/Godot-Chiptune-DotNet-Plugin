@@ -20,7 +20,7 @@ ChiptrackerNetBridge="*uid://7ourpuhbgan"
 
 [dotnet]
 
-project/assembly_name="ChipTracke_DotNet"
+project/assembly_name="ChipTracker_DotNet"
 
 [editor_plugins]
 

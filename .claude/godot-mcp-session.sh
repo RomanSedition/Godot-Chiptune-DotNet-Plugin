@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Manage the standalone GameDev-MCP server (Godot-MCP's C#-side editor-control
-# server) for the lifetime of a Claude session, for the ChipTracke .Net
+# server) for the lifetime of a Claude session, for the ChipTracker .Net
 # project.
 #
 #   start : if the server isn't already answering on $PORT, launch the cached
@@ -39,7 +39,7 @@ is_up() {
 case "${1:-start}" in
   start)
     if is_up; then
-      emit '"Godot MCP server (ChipTracke .Net) is already running on port 29650. Tell the user it is up; they should NOT click Start Server in the dock."'
+      emit '"Godot MCP server (ChipTracker .Net) is already running on port 29650. Tell the user it is up; they should NOT click Start Server in the dock."'
       exit 0
     fi
     if [ ! -x "$BIN" ]; then
@@ -49,7 +49,7 @@ case "${1:-start}" in
     ( cd "$GODOT_DIR" && nohup "$BIN" $ARGS >"$LOG" 2>&1 & echo $! >"$MARKER"; disown ) >/dev/null 2>&1
     for _ in $(seq 1 24); do is_up && break; sleep 0.25; done
     if is_up; then
-      emit '"Started the Godot MCP server (standalone, ChipTracke .Net, port 29650) for this session. Tell the user it is up and that they should NOT click Start Server in the dock -- it now shows External. It is stopped automatically when this session ends."'
+      emit '"Started the Godot MCP server (standalone, ChipTracker .Net, port 29650) for this session. Tell the user it is up and that they should NOT click Start Server in the dock -- it now shows External. It is stopped automatically when this session ends."'
     else
       emit '"Tried to start the Godot MCP server but it did not become ready in time. Tell the user to check .godot/mcp-server/session-server.log."'
     fi
