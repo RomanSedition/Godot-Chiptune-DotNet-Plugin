@@ -1,0 +1,201 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/chiptracker_net/ui/ChiptrackerDock.cs" id="1"]
+
+[node name="ChiptrackerDock" type="VBoxContainer"]
+custom_minimum_size = Vector2(0, 200)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1")
+
+[node name="TabBarRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="ViewTabBar" type="TabBar" parent="TabBarRow"]
+layout_mode = 2
+tab_close_display_policy = 0
+clip_tabs = false
+scrolling_enabled = false
+
+[node name="Body" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ChannelColumn" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ChannelLabel" type="Label" parent="Body/ChannelColumn"]
+layout_mode = 2
+text = "Channels"
+
+[node name="ChannelScroll" type="ScrollContainer" parent="Body/ChannelColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChannelListContainer" type="VBoxContainer" parent="Body/ChannelColumn/ChannelScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ButtonsMargin" type="MarginContainer" parent="Body/ChannelColumn"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="ChannelButtons" type="HBoxContainer" parent="Body/ChannelColumn/ButtonsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddChannelButton" type="Button" parent="Body/ChannelColumn/ButtonsMargin/ChannelButtons"]
+layout_mode = 2
+text = "Add"
+
+[node name="RemoveChannelButton" type="Button" parent="Body/ChannelColumn/ButtonsMargin/ChannelButtons"]
+layout_mode = 2
+text = "Remove"
+
+[node name="InstrumentColumn" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="InstrumentLabel" type="Label" parent="Body/InstrumentColumn"]
+layout_mode = 2
+text = "Instruments"
+
+[node name="InstrumentScroll" type="ScrollContainer" parent="Body/InstrumentColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="InstrumentListContainer" type="VBoxContainer" parent="Body/InstrumentColumn/InstrumentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ButtonsMargin" type="MarginContainer" parent="Body/InstrumentColumn"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="InstrumentButtons" type="HBoxContainer" parent="Body/InstrumentColumn/ButtonsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddInstrumentButton" type="Button" parent="Body/InstrumentColumn/ButtonsMargin/InstrumentButtons"]
+layout_mode = 2
+text = "Add"
+
+[node name="RemoveInstrumentButton" type="Button" parent="Body/InstrumentColumn/ButtonsMargin/InstrumentButtons"]
+layout_mode = 2
+text = "Remove"
+
+[node name="PatternColumn" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PatternLabel" type="Label" parent="Body/PatternColumn"]
+layout_mode = 2
+text = "Patterns"
+
+[node name="PatternScroll" type="ScrollContainer" parent="Body/PatternColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PatternListContainer" type="VBoxContainer" parent="Body/PatternColumn/PatternScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ButtonsMargin" type="MarginContainer" parent="Body/PatternColumn"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="PatternButtons" type="HBoxContainer" parent="Body/PatternColumn/ButtonsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddPatternButton" type="Button" parent="Body/PatternColumn/ButtonsMargin/PatternButtons"]
+layout_mode = 2
+text = "Add"
+
+[node name="RemovePatternButton" type="Button" parent="Body/PatternColumn/ButtonsMargin/PatternButtons"]
+layout_mode = 2
+text = "Remove"
+
+[node name="OrderColumn" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OrderLabel" type="Label" parent="Body/OrderColumn"]
+layout_mode = 2
+text = "Order List"
+
+[node name="OrderScroll" type="ScrollContainer" parent="Body/OrderColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="OrderListContainer" type="VBoxContainer" parent="Body/OrderColumn/OrderScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ButtonsMargin" type="MarginContainer" parent="Body/OrderColumn"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="OrderButtons" type="HBoxContainer" parent="Body/OrderColumn/ButtonsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MoveOrderUpButton" type="Button" parent="Body/OrderColumn/ButtonsMargin/OrderButtons"]
+layout_mode = 2
+tooltip_text = "Move up"
+
+[node name="MoveOrderDownButton" type="Button" parent="Body/OrderColumn/ButtonsMargin/OrderButtons"]
+layout_mode = 2
+tooltip_text = "Move down"
+
+[node name="RemoveOrderButton" type="Button" parent="Body/OrderColumn/ButtonsMargin/OrderButtons"]
+layout_mode = 2
+tooltip_text = "Remove"
+
+[node name="GroupsView" type="VBoxContainer" parent="Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+visible = false
+
+[node name="GroupsScroll" type="ScrollContainer" parent="Body/GroupsView"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GroupColumnsContainer" type="HBoxContainer" parent="Body/GroupsView/GroupsScroll"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="ButtonsMargin" type="MarginContainer" parent="Body/GroupsView"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="GroupButtons" type="HBoxContainer" parent="Body/GroupsView/ButtonsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddGroupButton" type="Button" parent="Body/GroupsView/ButtonsMargin/GroupButtons"]
+layout_mode = 2
+text = "Add"
+
+[node name="RemoveGroupButton" type="Button" parent="Body/GroupsView/ButtonsMargin/GroupButtons"]
+layout_mode = 2
+text = "Remove"

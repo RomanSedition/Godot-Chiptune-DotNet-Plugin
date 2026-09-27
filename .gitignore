@@ -1,0 +1,9 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# .NET/C# build output (the mono build's own output already lands under
+# .godot/mono/, ignored above; these are here in case a direct dotnet/msbuild
+# invocation outside that ever writes to the project-root default instead)
+bin/
+obj/
