@@ -34,6 +34,22 @@ namespace ChiptrackerNet.Bridge
                 GD.Print($"{LogPrefix}: listening on ws://127.0.0.1:{port}");
         }
 
+        // Closes the listening socket and drops every open peer. The
+        // owning Node must call this from its _ExitTree: Godot frees the
+        // Node, but the TcpServer is a RefCounted held by this plain C#
+        // object and goes on holding the OS port until it is collected --
+        // long enough that re-enabling the plugin hits AlreadyInUse and
+        // the bridge is dead for the rest of the editor session. Plugin
+        // reload is the normal way to pick up a rebuild here, so leaking
+        // the port once is enough to break it.
+        public void Stop()
+        {
+            foreach (var peer in _peers)
+                peer.Close();
+            _peers.Clear();
+            _tcpServer.Stop();
+        }
+
         public void Poll()
         {
             while (_tcpServer.IsConnectionAvailable())

@@ -66,6 +66,9 @@ namespace ChiptrackerNet.Bridge
         public void RebindSong(Engine.Song newSong) => _dispatcher.Song = newSong;
 
         public override void _Process(double delta) => _transport.Poll();
+
+        // Frees port 7780 for the next plugin load -- see BridgeTransport.Stop().
+        public override void _ExitTree() => _transport.Stop();
     }
 }
 #endif

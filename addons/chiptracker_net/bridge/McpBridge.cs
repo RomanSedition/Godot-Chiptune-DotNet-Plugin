@@ -28,5 +28,8 @@ namespace ChiptrackerNet.Bridge
         }
 
         public override void _Process(double delta) => _transport.Poll();
+
+        // Frees port 7779 for the next plugin load -- see BridgeTransport.Stop().
+        public override void _ExitTree() => _transport.Stop();
     }
 }
