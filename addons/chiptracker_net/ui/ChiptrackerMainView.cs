@@ -1,6 +1,7 @@
 #if TOOLS
 using Godot;
 using Godot.Collections;
+using System.Collections.Generic;
 using ChiptrackerNet.Engine;
 
 namespace ChiptrackerNet.UI
@@ -75,7 +76,7 @@ namespace ChiptrackerNet.UI
             _transportBar.Connect(TransportBar.SignalName.StopPressed, new Callable(this, MethodName.OnStopPressed));
             _transportBar.Connect(TransportBar.SignalName.LoopToggled, new Callable(this, MethodName.OnLoopToggled));
             _transportBar.Connect(TransportBar.SignalName.TempoChanged, new Callable(this, MethodName.OnTempoChanged));
-            _transportBar.Connect(TransportBar.SignalName.RowsPerPatternChanged, new Callable(this, MethodName.OnRowsPerPatternChanged));
+            _transportBar.Connect(TransportBar.SignalName.RowCountChanged, new Callable(this, MethodName.OnRowCountChanged));
             _transportBar.Connect(TransportBar.SignalName.TapTempoPressed, new Callable(this, MethodName.OnTapTempo));
             _countIn = LoadCountIn();
             _transportBar.SetCountIn(_countIn);
@@ -104,6 +105,12 @@ namespace ChiptrackerNet.UI
 
             _instrumentPanel.Connect(InstrumentPanel.SignalName.InstrumentEdited, new Callable(this, MethodName.MarkDirty));
         }
+
+        // The shrink confirmation is parented to the editor's base control,
+        // so it outlives this view -- without this, disabling or hot-
+        // reloading the plugin with one open would strand a live modal
+        // Window in the editor that nothing is left to answer or free.
+        public override void _ExitTree() => DismissShrinkDialog();
 
         // ---------- Live recording (M9) ----------
 
@@ -329,7 +336,7 @@ namespace ChiptrackerNet.UI
             var firstPattern = Song.OrderList.Count > 0 ? Song.OrderList[0] : 0;
             _patternGrid.SetPatternIndex(firstPattern);
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
         }
 
         // In Edit mode a MIDI key enters the note at the cursor, exactly
@@ -352,9 +359,8 @@ namespace ChiptrackerNet.UI
             UpdateUndoRedoButtons();
             _patternGrid.SetSong(Song);
             _transportBar.SetTempo(Song.Tempo);
-            _transportBar.SetRowsPerPattern(Song.RowsPerPattern);
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             _dock?.SetSong(Song);
         }
 
@@ -366,12 +372,20 @@ namespace ChiptrackerNet.UI
             _patternGrid.QueueRedraw();
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
             _transportBar.SetTempo(Song.Tempo);
-            _transportBar.SetRowsPerPattern(Song.RowsPerPattern);
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             _dock?.Refresh();
         }
 
-        void UpdatePatternNameLabel()
+        // Everything in the transport bar that describes *which* pattern is
+        // on screen rather than the song as a whole -- its name and its
+        // length. Both have to be re-pushed on every pattern change, since
+        // patterns are independently sized: the Rows field would otherwise
+        // keep showing the pattern you were looking at before (or, before
+        // it was per-pattern, Song.RowsPerPattern, which is only the size
+        // new patterns get created at and matches no particular pattern).
+        // Called from every site that can change the displayed pattern,
+        // including FollowPattern while playing.
+        void UpdatePatternHeader()
         {
             if (Song == null || Song.Patterns.Count == 0 || _patternGrid.PatternIndex >= Song.Patterns.Count)
             {
@@ -381,6 +395,7 @@ namespace ChiptrackerNet.UI
             var pattern = Song.Patterns[_patternGrid.PatternIndex];
             var label = string.IsNullOrEmpty(pattern.Name) ? $"Pattern {_patternGrid.PatternIndex}" : pattern.Name;
             _transportBar.SetPatternName(label);
+            _transportBar.SetRowCount(pattern.Rows.Count);
         }
 
         // A small pre-filled demo song (C major arpeggio lead + two-note
@@ -635,7 +650,12 @@ namespace ChiptrackerNet.UI
         {
             EndTake();
             foreach (var step in _gridEditHistory.UndoGroup())
-                ApplyGridEditStep(step, step.Before);
+            {
+                if (step.IsResize)
+                    ApplyResizeStep(step, undo: true);
+                else
+                    ApplyGridEditStep(step, step.Before);
+            }
             UpdateUndoRedoButtons();
         }
 
@@ -643,7 +663,12 @@ namespace ChiptrackerNet.UI
         {
             EndTake();
             foreach (var step in _gridEditHistory.RedoGroup())
-                ApplyGridEditStep(step, step.After);
+            {
+                if (step.IsResize)
+                    ApplyResizeStep(step, undo: false);
+                else
+                    ApplyGridEditStep(step, step.After);
+            }
             UpdateUndoRedoButtons();
         }
 
@@ -667,8 +692,41 @@ namespace ChiptrackerNet.UI
             _cellEditor.SetCell(cell);
             _patternGrid.QueueRedraw();
             _patternGrid.EnsureSelectionVisible();
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             MarkDirty();
+        }
+
+        // Applies a pattern resize in either direction. Undoing a shrink
+        // restores the row count first and then writes the discarded cells
+        // back into the rows that reappear, so the notes come back rather
+        // than just the empty rows; undoing a grow only has to drop the
+        // rows again, since growing never lost anything.
+        void ApplyResizeStep(GridEditHistory.Step step, bool undo)
+        {
+            Song.SetPatternRowCount(step.PatternIndex, undo ? step.BeforeRowCount : step.AfterRowCount);
+            if (undo && step.DiscardedRows != null)
+            {
+                var pattern = Song.Patterns[step.PatternIndex];
+                for (var i = 0; i < step.DiscardedRows.Count; i++)
+                {
+                    var rowIndex = step.AfterRowCount + i;
+                    if (rowIndex < 0 || rowIndex >= pattern.Rows.Count)
+                        break;
+                    var rowCells = pattern.Rows[rowIndex];
+                    var snapshots = step.DiscardedRows[i];
+                    for (var c = 0; c < snapshots.Count && c < rowCells.Count; c++)
+                        rowCells[c].As<Cell>().ApplySnapshot(snapshots[c]);
+                }
+            }
+            if (_patternGrid.PatternIndex != step.PatternIndex)
+                _patternGrid.SetPatternIndex(step.PatternIndex);
+            _patternGrid.SelectedRow = Mathf.Max(0, Mathf.Min(_patternGrid.SelectedRow, Song.Patterns[step.PatternIndex].Rows.Count - 1));
+            _patternGrid.UpdateMinSize();
+            _patternGrid.QueueRedraw();
+            _patternGrid.EnsureSelectionVisible();
+            _cellEditor.SetCell(_patternGrid.GetSelectedCell());
+            UpdatePatternHeader();
+            MarkPatternDirty(step.PatternIndex);
         }
 
         void UpdateUndoRedoButtons()
@@ -798,7 +856,7 @@ namespace ChiptrackerNet.UI
                 _instrumentPanel.EditInstrument(null);
             _patternGrid.SetSong(Song);
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             _dock.Refresh();
             MarkDirty();
         }
@@ -834,21 +892,21 @@ namespace ChiptrackerNet.UI
                 _patternGrid.SetPatternIndex(Mathf.Max(0, Song.Patterns.Count - 1));
             _patternGrid.UpdateMinSize();
             _patternGrid.QueueRedraw();
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             MarkDirty();
         }
 
         void OnPatternRenamed(int index)
         {
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
             MarkDirty();
         }
 
-        void OnPatternIndexRequested(int index)
+        internal void OnPatternIndexRequested(int index)
         {
             _patternGrid.SetPatternIndex(index);
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
-            UpdatePatternNameLabel();
+            UpdatePatternHeader();
         }
 
         void OnTempoChanged(int tempo)
@@ -906,15 +964,252 @@ namespace ChiptrackerNet.UI
             OnTapTempo();
         }
 
-        void OnRowsPerPatternChanged(int rows)
+        // The Rows field resizes only the pattern currently on screen --
+        // patterns are independently sized, and the field shows this one's
+        // length (see UpdatePatternHeader). Song.RowsPerPattern is left
+        // alone; it's the size new patterns get created at, not a
+        // song-wide constraint. Resizing every pattern at once is still
+        // available, but only deliberately, via the set_rows_per_pattern
+        // tool call.
+        internal void OnRowCountChanged(int rows)
         {
-            Song.SetRowsPerPattern(rows);
-            _patternGrid.SelectedRow = Mathf.Min(_patternGrid.SelectedRow, rows - 1);
+            var patternIndex = _patternGrid.PatternIndex;
+            if (Song == null || patternIndex < 0 || patternIndex >= Song.Patterns.Count || rows < 1)
+                return;
+            var pattern = Song.Patterns[patternIndex];
+            if (rows == pattern.Rows.Count)
+                return;
+
+            // Shrinking throws away every row past the new end. Ask first
+            // when those rows actually hold notes -- a silent truncation
+            // here is how the Shovel Knight transcription lost most of
+            // itself. Trimming empty tail rows needs no ceremony, and
+            // nagging on every click of the spinner's down arrow would be
+            // worse than the risk.
+            var discarded = DiscardedRowSnapshots(pattern, rows);
+            if (discarded != null && CountNotes(discarded) > 0)
+            {
+                // Deferred, never straight from this signal. Godot's
+                // SpinBox captures the mouse while you drag its value
+                // (scene/gui/spin_box.cpp sets MOUSE_MODE_CAPTURED) and
+                // only restores MOUSE_MODE_VISIBLE on the mouse-button
+                // *release*. value_changed fires mid-drag, so showing a
+                // modal here swallows that release and leaves the pointer
+                // captured -- the cursor vanishes and stays gone. Letting
+                // the input event finish first means the SpinBox gets its
+                // release and gives the cursor back.
+                _pendingShrinkPattern = patternIndex;
+                _pendingShrinkRows = rows;
+                _pendingShrinkDiscarded = discarded;
+                _shrinkWaitFrames = 0;
+                return;
+            }
+            ApplyRowCountChange(patternIndex, rows, discarded);
+        }
+
+        // Snapshots the rows a shrink to `newRowCount` would discard, or
+        // null when the pattern is growing instead (nothing is lost, so
+        // undoing only has to shrink it back).
+        internal static List<List<Dictionary>> DiscardedRowSnapshots(Pattern pattern, int newRowCount)
+        {
+            if (newRowCount >= pattern.Rows.Count)
+                return null;
+            var rows = new List<List<Dictionary>>();
+            for (var r = newRowCount; r < pattern.Rows.Count; r++)
+            {
+                var snapshots = new List<Dictionary>();
+                foreach (var cell in pattern.Rows[r])
+                    snapshots.Add(cell.As<Cell>().Snapshot());
+                rows.Add(snapshots);
+            }
+            return rows;
+        }
+
+        internal static int CountNotes(List<List<Dictionary>> rows)
+        {
+            var count = 0;
+            foreach (var row in rows)
+            {
+                foreach (var snapshot in row)
+                {
+                    if (snapshot["note"].AsInt32() >= 0)
+                        count++;
+                }
+            }
+            return count;
+        }
+
+        // The one shrink confirmation that can be open at a time. Held so
+        // it can always be got rid of again: an AcceptDialog is a Window,
+        // and a live one left parented and unanswered goes on swallowing
+        // input, which looks from the outside like the mouse has stopped
+        // working.
+        internal ConfirmationDialog _shrinkDialog;
+
+        // The resize waiting on that confirmation. Parked in fields rather
+        // than passed through CallDeferred, since the snapshot is a plain
+        // C# List and only Variant-marshallable arguments survive the trip.
+        int _pendingShrinkPattern;
+        int _pendingShrinkRows;
+        List<List<Dictionary>> _pendingShrinkDiscarded;
+
+        // How long the pending shrink has been waiting for the mouse
+        // button, in frames. Bounded so the confirmation can never be
+        // swallowed outright if the button somehow never reads as up.
+        int _shrinkWaitFrames;
+        const int ShrinkWaitFrameCap = 120;
+
+        // Holds the confirmation back until the mouse button is released.
+        // Godot's SpinBox ends its drag-to-change on the mouse-button *up*
+        // -- that is where it clears its internal drag flag, restores
+        // MOUSE_MODE_VISIBLE and warps the pointer back. A modal raised
+        // while the button is still down takes focus, so the SpinBox never
+        // sees its own release: the pointer stays captured, and the stale
+        // drag flag makes the next plain click in the text field resume a
+        // drag that never ended.
+        //
+        // This waits in _Process, NOT by re-issuing CallDeferred. A
+        // deferred call that defers again does not yield a frame --
+        // Godot's message queue keeps draining messages appended during
+        // the same flush, so input is never processed, the button never
+        // reads as released, and the editor hangs outright. _Process is
+        // the only one of the two that actually lets a frame happen.
+        public override void _Process(double delta)
+        {
+            if (_pendingShrinkDiscarded == null)
+                return;
+            if (Input.IsMouseButtonPressed(MouseButton.Left) && _shrinkWaitFrames < ShrinkWaitFrameCap)
+            {
+                _shrinkWaitFrames++;
+                return;
+            }
+            ConfirmPendingShrink();
+        }
+
+        void ConfirmPendingShrink()
+        {
+            var discarded = _pendingShrinkDiscarded;
+            if (discarded == null)
+                return;
+
+            _pendingShrinkDiscarded = null;
+            if (Song == null || _pendingShrinkPattern >= Song.Patterns.Count)
+                return;
+            // The pattern can have been resized by something else in the
+            // frame this waited, which would make the snapshot describe
+            // rows that no longer exist.
+            if (Song.Patterns[_pendingShrinkPattern].Rows.Count <= _pendingShrinkRows)
+                return;
+            ConfirmShrink(_pendingShrinkPattern, _pendingShrinkRows, discarded);
+        }
+
+        // Undoes a mouse grab that the SpinBox was about to release when
+        // something interrupted it (see OnRowCountChanged). Only ever
+        // *releases* a capture -- it never takes one -- so it can't
+        // disturb a running game that captured the pointer deliberately,
+        // because this only runs on an editor dialog's way in or out.
+        static void ReleaseMouseCapture()
+        {
+            if (Input.MouseMode == Input.MouseModeEnum.Captured)
+                Input.MouseMode = Input.MouseModeEnum.Visible;
+        }
+
+        // The Rows field has already moved to the new value by the time
+        // this runs, so cancelling has to put it back -- otherwise the box
+        // would keep reading a length the pattern doesn't have.
+        void ConfirmShrink(int patternIndex, int rows, List<List<Dictionary>> discarded)
+        {
+            // Never stack two. The spinner can fire again while one is
+            // open (its arrows still work), and the second dialog would
+            // bury the first, which then never gets answered or freed.
+            DismissShrinkDialog();
+
+            var pattern = Song.Patterns[patternIndex];
+            var lost = CountNotes(discarded);
+            var label = string.IsNullOrEmpty(pattern.Name) ? $"Pattern {patternIndex}" : pattern.Name;
+            var dialog = new ConfirmationDialog
+            {
+                Title = "Shrink pattern?",
+                DialogText = $"Shrinking {label} from {pattern.Rows.Count} to {rows} rows discards "
+                    + $"{discarded.Count} row{(discarded.Count == 1 ? "" : "s")} holding {lost} note{(lost == 1 ? "" : "s")}.\n\n"
+                    + "This can be undone.",
+                OkButtonText = "Shrink",
+            };
+            // Same object+method Callable rule as everywhere else in this
+            // addon (see TransportBar) -- DockRowHandler's generic
+            // Action fields double as this short-lived dialog's handlers.
+            var handler = new DockRowHandler
+            {
+                Clicked = () =>
+                {
+                    if (DismissShrinkDialog())
+                        ApplyRowCountChange(patternIndex, rows, discarded);
+                },
+                // Cancelled, closed with the window's X, or dismissed with
+                // Escape. All three mean "leave the pattern alone", and all
+                // three are no-arg, so they share the one generic slot --
+                // DismissShrinkDialog() makes the second delivery a no-op
+                // when Godot sends both canceled and close_requested.
+                FocusExited = () =>
+                {
+                    if (DismissShrinkDialog())
+                        _transportBar.SetRowCount(Song.Patterns[patternIndex].Rows.Count);
+                },
+            };
+            dialog.SetMeta("_shrink_handler", handler);
+            var cancel = new Callable(handler, DockRowHandler.MethodName.OnFocusExitedNotify);
+            dialog.Connect(AcceptDialog.SignalName.Confirmed, new Callable(handler, DockRowHandler.MethodName.OnPressedNotify));
+            dialog.Connect(AcceptDialog.SignalName.Canceled, cancel);
+            dialog.Connect(Window.SignalName.CloseRequested, cancel);
+
+            // The editor's base control, not this main-screen Control --
+            // same parent OnExportRequested's file dialog uses. A Window
+            // parented into the main view is embedded in *its* viewport
+            // rather than presented by the editor, where it can end up
+            // clipped or behind the tab while still holding input focus.
+            _shrinkDialog = dialog;
+            var parent = Godot.Engine.IsEditorHint() ? EditorInterface.Singleton.GetBaseControl() : (Node)this;
+            parent.AddChild(dialog);
+            // Belt and braces alongside the deferral in OnRowCountChanged:
+            // if the pointer is somehow still captured from the spinner
+            // drag that got us here, show the dialog with a visible cursor
+            // rather than one the user can't see to click it with.
+            ReleaseMouseCapture();
+            dialog.PopupCentered();
+        }
+
+        // Tears down the open shrink dialog if there is one. Returns
+        // whether this call is the one that closed it, so a handler only
+        // acts once however many close signals Godot delivers.
+        internal bool DismissShrinkDialog()
+        {
+            if (_shrinkDialog == null)
+                return false;
+            var dialog = _shrinkDialog;
+            _shrinkDialog = null;
+            if (GodotObject.IsInstanceValid(dialog))
+            {
+                dialog.Hide();
+                dialog.QueueFree();
+            }
+            ReleaseMouseCapture();
+            return true;
+        }
+
+        internal void ApplyRowCountChange(int patternIndex, int rows, List<List<Dictionary>> discarded)
+        {
+            var before = Song.Patterns[patternIndex].Rows.Count;
+            Song.SetPatternRowCount(patternIndex, rows);
+            _gridEditHistory.PushResize(patternIndex, before, rows, discarded,
+                $"Pattern {patternIndex} to {rows} rows");
+            UpdateUndoRedoButtons();
+            _patternGrid.SelectedRow = Mathf.Max(0, Mathf.Min(_patternGrid.SelectedRow, rows - 1));
             _patternGrid.UpdateMinSize();
             _patternGrid.QueueRedraw();
             _patternGrid.EnsureSelectionVisible();
             _cellEditor.SetCell(_patternGrid.GetSelectedCell());
-            MarkDirty();
+            _transportBar.SetRowCount(rows);
+            MarkPatternDirty(patternIndex);
         }
 
         void OnLoopToggled(bool enabled)
@@ -1073,7 +1368,7 @@ namespace ChiptrackerNet.UI
                 if (playingPatternIndex != _patternGrid.PatternIndex)
                 {
                     _patternGrid.FollowPattern(playingPatternIndex);
-                    UpdatePatternNameLabel();
+                    UpdatePatternHeader();
                 }
             }
             _patternGrid.SetPlaybackRow(rowIndex);

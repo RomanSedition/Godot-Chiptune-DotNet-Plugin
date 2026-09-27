@@ -143,7 +143,10 @@ serialization to `.tres`, inspector editing, and undo/redo integration later.
 - `Song` (Resource)
   - `tempo: int` (BPM)
   - `rows_per_beat: int` (default 4; row duration = `60.0 / tempo / rows_per_beat` seconds)
-  - `rows_per_pattern: int`
+  - `rows_per_pattern: int` — the length *new* patterns are created at, not a
+    song-wide constraint. Each pattern's actual length is its own `rows.size()`,
+    and patterns may differ (an imported song routinely does). Nothing reads
+    this to decide how long an existing pattern is.
   - `channels: Array[Channel]`
   - `order_list: Array[int]` (sequence of pattern indices)
   - `patterns: Array[Pattern]`
@@ -165,7 +168,10 @@ serialization to `.tres`, inspector editing, and undo/redo integration later.
 
 - `Pattern` (Resource)
   - `name: String` (optional; empty means display as "Pattern N" by index)
-  - `rows: Array[Array[Cell]]` — indexed `[row][channel]`
+  - `rows: Array[Array[Cell]]` — indexed `[row][channel]`. `rows.size()` is this
+    pattern's length, independent of every other pattern and of
+    `Song.rows_per_pattern`. The grid, playback and the transport bar's Rows
+    field all read it.
 
 - `Cell` (Resource)
   - `note: int` (MIDI-style note number, or -1 for empty/no-op)
@@ -240,9 +246,12 @@ model's `Channel` fields):
    grows every existing pattern's rows to match; returns `{channel_index}`
 10. `remove_channel` (params: index) → shrinks every pattern's rows to
     match; rejects removing the last remaining channel
-11. `set_rows_per_pattern` (params: rows_per_pattern) → resizes every
-    pattern to that many rows, preserving existing cells (grow appends
-    empty rows, shrink truncates)
+11. `set_rows_per_pattern` (params: rows_per_pattern, pattern?) → resizes
+    patterns, preserving existing cells (grow appends empty rows, shrink
+    truncates). With `pattern`, resizes only that one and leaves the song's
+    `rows_per_pattern` alone. Without it, resizes every pattern *and* sets
+    `rows_per_pattern` for new ones — the song-wide form, which flattens any
+    per-pattern lengths, so pass `pattern` unless that is the intent.
 12. `add_pattern` (no params) → appends a new empty pattern sized to the
     song's current rows_per_pattern/channel count; returns
     `{pattern_index}`. Not automatically added to the order list.
@@ -560,7 +569,8 @@ the engine layer, not directly in UI code.
 `_has_main_screen()` returning `true`, so "Chiptracker" appears as its own
 top-bar tab next to 2D/3D/Script/Game/AssetStore — not as a bottom dock.
 `_make_visible()`/`_edit()` should swap in a root `Control` containing: a
-transport bar (play/stop/loop, tempo, current row/pattern), the pattern grid
+transport bar (play/stop/loop, tempo, the displayed pattern's length in rows,
+current row/pattern), the pattern grid
 itself (a custom `Control` with manual `_draw()` — Godot has no built-in
 spreadsheet-style grid control, so this is the most involved UI piece in the
 project), and a side panel for the selected instrument's waveform/envelope/
@@ -1232,6 +1242,57 @@ loop instead of typed row by row. Design agreed 2026-09-19.
    Redo buttons/keys and the Akai's undo/redo all act on a whole take.
    The 100-step cap still counts individual notes, so a take of more than 100
    notes can't be fully undone. Covered by `tests/m9_take_test.gd`.
+
+### Pattern resize: the Rows field
+
+The transport bar's `Rows` field shows and edits the length of the pattern
+currently displayed, re-pushed on every pattern change (`ChiptrackerMainView.
+UpdatePatternHeader`). It resizes only that pattern
+(`Song.SetPatternRowCount`) and leaves `Song.rows_per_pattern` alone.
+
+Two safeguards, both added after a resize silently emptied most of the
+Shovel Knight transcription — the field had been showing the song-wide
+`rows_per_pattern` rather than the displayed pattern's real length, so
+correcting it to what the pattern looked like truncated every pattern, and
+restoring the original number re-grew them with empty rows:
+
+- **Undoable.** A resize is a `GridEditHistory` step like a cell edit, but
+  structural: `Step.IsResize` is set, and the step carries the row counts
+  either side plus `DiscardedRows`, a snapshot of every row a shrink threw
+  away (one `Cell.Snapshot()` per channel). Undo restores the row count and
+  then writes those cells back, so the notes return with the rows, not just
+  empty rows. A resize never joins an open recording group. It still counts
+  against the 100-step cap.
+- **Confirmed when destructive.** Shrinking past rows that actually hold
+  notes pops a `ConfirmationDialog` naming the pattern, the row counts and
+  how many notes would go; cancelling puts the field back to the pattern's
+  real length. Growing, and trimming empty tail rows, apply silently —
+  prompting on every click of the spinner's down arrow would be worse than
+  the risk.
+
+**Raising that dialog is timing-critical, and got this wrong three times.**
+Two engine behaviours constrain it, and both must hold:
+
+- Godot's `SpinBox` ends its drag-to-change on the mouse-button *release* —
+  that is where it clears its internal drag flag, restores
+  `MOUSE_MODE_VISIBLE` and warps the pointer back. A modal raised while the
+  button is still down takes focus, so the SpinBox never sees its own
+  release: the pointer stays captured (the cursor vanishes) and the stale
+  drag flag makes the next plain click in the text field resume a drag that
+  never ended. So the dialog must wait for the button to come up.
+- That wait must happen in `_Process`, never by a deferred call that calls
+  `CallDeferred` again. Godot's message queue keeps draining messages
+  appended during the same flush, so deferred recursion never yields a
+  frame: input is never processed, the button never reads as released, and
+  the editor hangs outright.
+
+The wait is capped (`ShrinkWaitFrameCap`) so the confirmation cannot be
+swallowed if the button never reads as up, and `ReleaseMouseCapture()` drops
+any leftover grab on the dialog's way in and out as a backstop.
+
+Covered by `tests/M6UiLoadTest.cs`, which asserts the dialog is not raised
+synchronously from `value_changed`. The mouse-release timing itself is not
+coverable headlessly — it needs a real drag.
 6. Optional count-in. **Done.** A `Count-in` checkbox beside REC (a
    per-machine preference, `chiptracker/record_count_in` in the editor
    settings, off by default). `CountIn.render()` makes one bar (four beats) of

@@ -391,9 +391,17 @@ async def chiptracker_set_tempo(tempo: int, rows_per_beat: Optional[int] = None)
 
 
 @mcp.tool()
-async def chiptracker_set_rows_per_pattern(rows_per_pattern: int) -> dict[str, Any]:
-    """Resize every pattern in the Play-time bridge's song to `rows_per_pattern` rows, preserving existing notes."""
-    return await play_bridge.call("set_rows_per_pattern", {"rows_per_pattern": rows_per_pattern})
+async def chiptracker_set_rows_per_pattern(rows_per_pattern: int, pattern: Optional[int] = None) -> dict[str, Any]:
+    """Resize patterns in the Play-time bridge's song, preserving existing notes (growing appends empty rows, shrinking truncates).
+
+    With `pattern`, resizes only that pattern index. Without it, resizes EVERY pattern and sets
+    the song's default length for newly-added patterns. Patterns are independently sized, so
+    prefer passing `pattern` unless you really mean to re-length the whole song.
+    """
+    params: dict[str, Any] = {"rows_per_pattern": rows_per_pattern}
+    if pattern is not None:
+        params["pattern"] = pattern
+    return await play_bridge.call("set_rows_per_pattern", params)
 
 
 @mcp.tool()
@@ -812,9 +820,17 @@ async def chiptracker_editor_set_tempo(tempo: int, rows_per_beat: Optional[int] 
 
 
 @mcp.tool()
-async def chiptracker_editor_set_rows_per_pattern(rows_per_pattern: int) -> dict[str, Any]:
-    """Resize every pattern in the open tab's song to `rows_per_pattern` rows, preserving existing notes."""
-    return await editor_bridge.call("set_rows_per_pattern", {"rows_per_pattern": rows_per_pattern})
+async def chiptracker_editor_set_rows_per_pattern(rows_per_pattern: int, pattern: Optional[int] = None) -> dict[str, Any]:
+    """Resize patterns in the open tab's song, preserving existing notes (growing appends empty rows, shrinking truncates).
+
+    With `pattern`, resizes only that pattern index. Without it, resizes EVERY pattern and sets
+    the song's default length for newly-added patterns. Patterns are independently sized, so
+    prefer passing `pattern` unless you really mean to re-length the whole song.
+    """
+    params: dict[str, Any] = {"rows_per_pattern": rows_per_pattern}
+    if pattern is not None:
+        params["pattern"] = pattern
+    return await editor_bridge.call("set_rows_per_pattern", params)
 
 
 @mcp.tool()

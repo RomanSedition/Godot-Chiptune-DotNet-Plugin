@@ -34,6 +34,23 @@ namespace ChiptrackerNet.Engine
             // are undone/redone together.
             public int GroupId;
 
+            // ---- Pattern-resize steps only (see PushResize) ----
+
+            // Row counts either side of the resize. Both -1 on an ordinary
+            // cell edit; IsResize tells the two kinds apart, since a
+            // resize changes a pattern's shape rather than one cell's
+            // contents and the caller has to apply it differently.
+            public int BeforeRowCount = -1;
+            public int AfterRowCount = -1;
+
+            // The rows a shrink discarded, indexed from AfterRowCount:
+            // DiscardedRows[i] is the row that was at AfterRowCount + i,
+            // holding one Cell.Snapshot() per channel. Null when the
+            // resize grew the pattern, since nothing was lost.
+            public List<List<Dictionary>> DiscardedRows;
+
+            public bool IsResize => BeforeRowCount >= 0;
+
             public Step(int patternIndex, int row, int channel, Dictionary before, Dictionary after, string label)
             {
                 PatternIndex = patternIndex;
@@ -41,6 +58,15 @@ namespace ChiptrackerNet.Engine
                 Channel = channel;
                 Before = before;
                 After = after;
+                Label = label;
+            }
+
+            public Step(int patternIndex, int beforeRowCount, int afterRowCount, List<List<Dictionary>> discardedRows, string label)
+            {
+                PatternIndex = patternIndex;
+                BeforeRowCount = beforeRowCount;
+                AfterRowCount = afterRowCount;
+                DiscardedRows = discardedRows;
                 Label = label;
             }
         }
@@ -74,6 +100,22 @@ namespace ChiptrackerNet.Engine
         {
             var step = new Step(patternIndex, row, channel, before, after, label) { GroupId = _openGroup };
             _undoStack.Add(step);
+            if (_undoStack.Count > MaxSteps)
+                _undoStack.RemoveAt(0);
+            _redoStack.Clear();
+            Changed?.Invoke();
+        }
+
+        // Records a pattern resize. Unlike Push()'s cell edits this is a
+        // structural change, so the caller applies it differently (restore
+        // the row count, then put the discarded rows back) -- see
+        // Step.IsResize. A resize never joins an open group: a recorded
+        // take is a run of cell writes, and folding a shape change into it
+        // would make one undo step that both re-lengthens the pattern and
+        // rewrites notes.
+        public void PushResize(int patternIndex, int beforeRowCount, int afterRowCount, List<List<Dictionary>> discardedRows, string label)
+        {
+            _undoStack.Add(new Step(patternIndex, beforeRowCount, afterRowCount, discardedRows, label));
             if (_undoStack.Count > MaxSteps)
                 _undoStack.RemoveAt(0);
             _redoStack.Clear();

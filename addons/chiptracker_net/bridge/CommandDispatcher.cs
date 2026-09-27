@@ -806,6 +806,12 @@ namespace ChiptrackerNet.Bridge
             return Ok(new Dictionary());
         }
 
+        // Without `pattern`, this resizes every pattern and sets the
+        // song's default length for new ones -- the original, deliberately
+        // song-wide behavior. With `pattern`, it resizes just that one and
+        // leaves the default alone, matching what the Rows field in the
+        // transport bar does (patterns are independently sized; see
+        // Song.SetPatternRowCount).
         Dictionary SetRowsPerPattern(Dictionary parameters)
         {
             if (!parameters.ContainsKey("rows_per_pattern"))
@@ -813,7 +819,17 @@ namespace ChiptrackerNet.Bridge
             var newCount = parameters["rows_per_pattern"].AsInt32();
             if (newCount < 1)
                 return Err("rows_per_pattern must be at least 1");
-            Song.SetRowsPerPattern(newCount);
+            if (parameters.ContainsKey("pattern"))
+            {
+                var patternIndex = parameters["pattern"].AsInt32();
+                if (patternIndex < 0 || patternIndex >= Song.Patterns.Count)
+                    return Err($"pattern {patternIndex} is out of range");
+                Song.SetPatternRowCount(patternIndex, newCount);
+            }
+            else
+            {
+                Song.SetRowsPerPattern(newCount);
+            }
             NotifyMutated(false);
             return Ok(new Dictionary());
         }

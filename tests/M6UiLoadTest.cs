@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Godot.Collections;
 using ChiptrackerNet.UI;
+using ChiptrackerNet.Engine;
 
 namespace ChiptrackerNet.Tests
 {
@@ -302,6 +303,102 @@ namespace ChiptrackerNet.Tests
             mainView._patternGrid.SetPatternIndex(0);
             mainView.OnRowAdvanced(1, 2); // order position 1 resolves to pattern 1
             Check(failures, mainView._patternGrid.PatternIndex == 1, "row_advanced follows playback into a different pattern");
+
+            // The Rows field describes the pattern on screen, not the song.
+            // Patterns are independently sized (Song.rows_per_pattern is
+            // only the length new ones are created at), so the field has to
+            // be re-pushed on every pattern change and must edit just the
+            // one being displayed -- a real song imported from a tracker
+            // routinely has patterns of different lengths.
+            var defaultRows = mainView.Song.RowsPerPattern;
+            mainView.Song.SetPatternRowCount(0, 32);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 32, "SetPatternRowCount resizes the pattern it names");
+            Check(failures, mainView.Song.Patterns[1].Rows.Count != 32, "resizing one pattern leaves the other patterns' lengths alone");
+            Check(failures, mainView.Song.RowsPerPattern == defaultRows, "resizing one pattern leaves the song's default length for new patterns alone");
+
+            var otherRows = mainView.Song.Patterns[1].Rows.Count;
+            mainView.OnPatternIndexRequested(0);
+            Check(failures, (int)mainView._transportBar._rowsSpin.Value == 32, $"Rows field shows the displayed pattern's length (expected 32, got {(int)mainView._transportBar._rowsSpin.Value})");
+            mainView.OnPatternIndexRequested(1);
+            Check(failures, (int)mainView._transportBar._rowsSpin.Value == otherRows, $"Rows field follows a switch to a pattern of a different length (expected {otherRows}, got {(int)mainView._transportBar._rowsSpin.Value})");
+
+            // Editing the field resizes only what's on screen. Pattern 1 is
+            // still the displayed one here.
+            mainView.OnRowCountChanged(48);
+            Check(failures, mainView.Song.Patterns[1].Rows.Count == 48, "editing the Rows field resizes the displayed pattern");
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 32, "editing the Rows field leaves other patterns alone");
+            Check(failures, mainView.Song.RowsPerPattern == defaultRows, "editing the Rows field leaves the song's default length alone");
+
+            // The song-wide form is still reachable, and still flattens
+            // every pattern to one length (what set_rows_per_pattern does
+            // without a `pattern` argument).
+            mainView.Song.SetRowsPerPattern(64);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64 && mainView.Song.Patterns[1].Rows.Count == 64,
+                "SetRowsPerPattern still resizes every pattern");
+            Check(failures, mainView.Song.RowsPerPattern == 64, "SetRowsPerPattern still sets the song's default length");
+
+            // Shrinking a pattern throws rows away, so it asks first when
+            // those rows hold notes, and either way it goes through the
+            // undo history -- both patterns of the Shovel Knight incident,
+            // where a truncate-then-regrow silently emptied the song with
+            // no way back.
+            mainView._patternGrid.SetPatternIndex(0);
+            var doomed = mainView.Song.Patterns[0].Rows[40][0].As<Cell>();
+            doomed.Note = 60;
+            doomed.Volume = 15;
+
+            mainView.OnRowCountChanged(32);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "shrinking past a note asks before truncating, leaving the pattern alone until answered");
+            // The dialog must NOT exist yet: raising it straight from
+            // value_changed happens inside SpinBox's input handling, which
+            // eats the mouse-button release that ends its drag-to-change
+            // and leaves the pointer captured (cursor invisible).
+            Check(failures, mainView._shrinkDialog == null, "the shrink confirmation is deferred, not raised from inside the SpinBox's value_changed");
+            await ToSignal(this, SceneTree.SignalName.ProcessFrame);
+            Check(failures, mainView._shrinkDialog != null, "the deferred shrink confirmation appears on the next frame");
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "the pattern is still untouched once the confirmation is up");
+
+            // A second resize while one is open must not stack a dialog
+            // behind the first -- an unanswered modal Window goes on
+            // swallowing input, which reads as the mouse having died.
+            var firstDialog = mainView._shrinkDialog;
+            mainView.OnRowCountChanged(24);
+            await ToSignal(this, SceneTree.SignalName.ProcessFrame);
+            Check(failures, !GodotObject.IsInstanceValid(firstDialog) || mainView._shrinkDialog != firstDialog,
+                "a second shrink replaces the open confirmation instead of stacking behind it");
+            Check(failures, mainView.DismissShrinkDialog(), "the open confirmation can be dismissed");
+            Check(failures, !mainView.DismissShrinkDialog(), "dismissing twice is a no-op, so duplicate close signals can't double-apply");
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "dismissing the confirmation leaves the pattern alone");
+
+            // Growing loses nothing, so it applies straight away -- no
+            // dialog for every click of the spinner's up arrow.
+            mainView.OnRowCountChanged(80);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 80, "growing a pattern applies without asking");
+            mainView.OnUndoPressed();
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "undo reverses a grow");
+
+            // Trimming empty tail rows is equally unremarkable.
+            mainView.OnRowCountChanged(48);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 48, "shrinking over empty rows applies without asking");
+            mainView.OnUndoPressed();
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "undo reverses a shrink over empty rows");
+
+            // The confirmed path: what ConfirmShrink's OK button runs.
+            var discarded = ChiptrackerMainView.DiscardedRowSnapshots(mainView.Song.Patterns[0], 32);
+            Check(failures, ChiptrackerMainView.CountNotes(discarded) == 1, $"the discarded-row snapshot counts the notes that would be lost (got {ChiptrackerMainView.CountNotes(discarded)})");
+            mainView.ApplyRowCountChange(0, 32, discarded);
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 32, "confirming the shrink truncates the pattern");
+            Check(failures, (int)mainView._transportBar._rowsSpin.Value == 32, "Rows field follows an applied shrink");
+
+            mainView.OnUndoPressed();
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 64, "undo restores the shrunk pattern's length");
+            Check(failures, mainView.Song.Patterns[0].Rows[40][0].As<Cell>().Note == 60, "undo restores the notes that were in the discarded rows, not just the empty rows");
+            Check(failures, (int)mainView._transportBar._rowsSpin.Value == 64, "Rows field follows an undone shrink");
+
+            mainView.OnRedoPressed();
+            Check(failures, mainView.Song.Patterns[0].Rows.Count == 32, "redo re-applies the shrink");
+            mainView.OnUndoPressed();
+            Check(failures, mainView.Song.Patterns[0].Rows[40][0].As<Cell>().Note == 60, "undo after a redo restores the discarded notes again");
 
             Finish(failures);
         }

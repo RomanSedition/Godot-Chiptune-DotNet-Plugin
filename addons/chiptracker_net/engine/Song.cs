@@ -140,6 +140,13 @@ namespace ChiptrackerNet.Engine
         // Sets RowsPerPattern for the whole song and resizes every
         // existing pattern to match, preserving existing cells (see
         // Pattern.SetRowCount).
+        //
+        // A pattern's length is its own Rows.Count, not this -- patterns
+        // are independently sized (the Rows field in TransportBar edits
+        // one at a time, via SetPatternRowCount). RowsPerPattern is the
+        // length *new* patterns are created at, plus this bulk "make them
+        // all this long" operation; nothing reads it to decide how long a
+        // pattern already is.
         public void SetRowsPerPattern(int newCount)
         {
             if (newCount < 1)
@@ -147,6 +154,17 @@ namespace ChiptrackerNet.Engine
             RowsPerPattern = newCount;
             foreach (var pattern in Patterns)
                 pattern.SetRowCount(newCount);
+            SyncMetronome();
+        }
+
+        // Resizes one pattern, leaving every other pattern and the song's
+        // default RowsPerPattern alone. Preserving cells and re-laying the
+        // metronome work the same as the song-wide version.
+        public void SetPatternRowCount(int patternIndex, int newCount)
+        {
+            if (newCount < 1 || patternIndex < 0 || patternIndex >= Patterns.Count)
+                return;
+            Patterns[patternIndex].SetRowCount(newCount);
             SyncMetronome();
         }
 

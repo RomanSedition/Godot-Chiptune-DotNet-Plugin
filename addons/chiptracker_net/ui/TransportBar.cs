@@ -4,9 +4,14 @@ using Godot;
 namespace ChiptrackerNet.UI
 {
     // C# counterpart of addons/chiptracker/ui/transport_bar.gd. Play/stop/
-    // loop controls, tempo, rows-per-pattern, the current pattern's name,
-    // and a status readout. Pure UI signal source -- ChiptrackerMainView
-    // wires these to the engine once it exists.
+    // loop controls, tempo, the current pattern's length and name, and a
+    // status readout. Pure UI signal source -- ChiptrackerMainView wires
+    // these to the engine once it exists.
+    //
+    // The Rows field shows and edits the *currently displayed* pattern's
+    // length, not Song.RowsPerPattern -- patterns are independently sized
+    // (see Song.SetPatternRowCount). ChiptrackerMainView pushes the new
+    // value in via SetRowCount every time the displayed pattern changes.
     //
     // Every signal connection here is an OBJECT+METHOD Callable
     // (`Connect(Signal, new Callable(this, MethodName.Foo))`), never a C#
@@ -21,7 +26,7 @@ namespace ChiptrackerNet.UI
         [Signal] public delegate void StopPressedEventHandler();
         [Signal] public delegate void LoopToggledEventHandler(bool enabled);
         [Signal] public delegate void TempoChangedEventHandler(int tempo);
-        [Signal] public delegate void RowsPerPatternChangedEventHandler(int rows);
+        [Signal] public delegate void RowCountChangedEventHandler(int rows);
         [Signal] public delegate void TapTempoPressedEventHandler();
         [Signal] public delegate void CountInToggledEventHandler(bool enabled);
 
@@ -32,7 +37,9 @@ namespace ChiptrackerNet.UI
         Button _stopButton;
         Button _loopButton;
         SpinBox _tempoSpin;
-        SpinBox _rowsSpin;
+        // internal, not private: M6UiLoadTest asserts the Rows field tracks
+        // the displayed pattern (see ChiptrackerMainView.UpdatePatternHeader).
+        internal SpinBox _rowsSpin;
         Label _patternNameLabel;
         internal Label _octaveLabel;
         Label _statusLabel;
@@ -62,7 +69,7 @@ namespace ChiptrackerNet.UI
             _stopButton.Connect(BaseButton.SignalName.Pressed, new Callable(this, MethodName.OnStopButtonPressed));
             _loopButton.Connect(BaseButton.SignalName.Toggled, new Callable(this, MethodName.OnLoopButtonToggled));
             _tempoSpin.Connect(Range.SignalName.ValueChanged, new Callable(this, MethodName.OnTempoChanged));
-            _rowsSpin.Connect(Range.SignalName.ValueChanged, new Callable(this, MethodName.OnRowsPerPatternChanged));
+            _rowsSpin.Connect(Range.SignalName.ValueChanged, new Callable(this, MethodName.OnRowCountChanged));
             Connect(SignalName.Resized, new Callable(this, CanvasItem.MethodName.QueueRedraw));
 
             foreach (var labelName in new[] { "TempoLabel", "RowsLabel", "OctaveLabel", "StatusLabel" })
@@ -72,6 +79,7 @@ namespace ChiptrackerNet.UI
                 label.VerticalAlignment = VerticalAlignment.Center;
             }
             _patternNameLabel.VerticalAlignment = VerticalAlignment.Center;
+            _rowsSpin.TooltipText = "Length of the pattern you're looking at, in rows.\nPatterns are sized independently -- this only resizes this one.\nShrinking discards the rows past the new end.";
 
             BuildTapTempoButton();
             BuildStepSpin();
@@ -154,7 +162,7 @@ namespace ChiptrackerNet.UI
             _updating = false;
         }
 
-        public void SetRowsPerPattern(int rows)
+        public void SetRowCount(int rows)
         {
             _updating = true;
             _rowsSpin.Value = rows;
@@ -201,11 +209,11 @@ namespace ChiptrackerNet.UI
             EmitSignal(SignalName.TempoChanged, (int)value);
         }
 
-        void OnRowsPerPatternChanged(double value)
+        void OnRowCountChanged(double value)
         {
             if (_updating)
                 return;
-            EmitSignal(SignalName.RowsPerPatternChanged, (int)value);
+            EmitSignal(SignalName.RowCountChanged, (int)value);
         }
     }
 }
