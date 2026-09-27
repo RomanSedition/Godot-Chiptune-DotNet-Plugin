@@ -442,6 +442,14 @@ namespace ChiptrackerNet.UI
             var group = new ButtonGroup();
             for (var i = 0; i < Song.Channels.Count; i++)
             {
+                // A `for` variable is ONE variable shared by every
+                // iteration, so a lambda capturing `i` directly sees the
+                // value the loop ended on -- Channels.Count, which is out
+                // of range. GDScript's .bind(i) captured by value, so the
+                // port needs this copy to behave the same way. Without it
+                // every row's buttons throw and the M/S flags are never
+                // set.
+                var index = i;
                 var channel = Song.Channels[i];
                 var row = new HBoxContainer();
 
@@ -455,8 +463,8 @@ namespace ChiptrackerNet.UI
                     TooltipText = "Click to select, double-click to rename",
                 };
                 ApplySelectionStyle(selectButton);
-                ConnectPressed(selectButton, () => OnChannelRowPressed(i));
-                ConnectGuiInput(selectButton, e => OnChannelRowGuiInput(e, i, row, selectButton));
+                ConnectPressed(selectButton, () => OnChannelRowPressed(index));
+                ConnectGuiInput(selectButton, e => OnChannelRowGuiInput(e, index, row, selectButton));
                 row.AddChild(selectButton);
 
                 var muteButton = new Button
@@ -467,7 +475,7 @@ namespace ChiptrackerNet.UI
                     ButtonPressed = channel.Muted,
                 };
                 ApplyCompactStyle(muteButton);
-                ConnectToggled(muteButton, pressed => OnChannelMuteToggled(pressed, i));
+                ConnectToggled(muteButton, pressed => OnChannelMuteToggled(pressed, index));
                 row.AddChild(muteButton);
 
                 var soloButton = new Button
@@ -478,7 +486,7 @@ namespace ChiptrackerNet.UI
                     ButtonPressed = channel.Solo,
                 };
                 ApplyCompactStyle(soloButton);
-                ConnectToggled(soloButton, pressed => OnChannelSoloToggled(pressed, i));
+                ConnectToggled(soloButton, pressed => OnChannelSoloToggled(pressed, index));
                 row.AddChild(soloButton);
 
                 _channelListContainer.AddChild(row);
@@ -579,6 +587,9 @@ namespace ChiptrackerNet.UI
             var group = new ButtonGroup();
             for (var i = 0; i < Song.Instruments.Count; i++)
             {
+                // Per-iteration copy for the closures below -- see
+                // RebuildChannelList.
+                var index = i;
                 var instrument = Song.Instruments[i];
                 var row = new HBoxContainer();
 
@@ -592,8 +603,8 @@ namespace ChiptrackerNet.UI
                     TooltipText = "Click to edit, double-click to rename",
                 };
                 ApplySelectionStyle(selectButton);
-                ConnectPressed(selectButton, () => OnInstrumentRowPressed(i, instrument));
-                ConnectGuiInput(selectButton, e => OnInstrumentRowGuiInput(e, i, row, selectButton));
+                ConnectPressed(selectButton, () => OnInstrumentRowPressed(index, instrument));
+                ConnectGuiInput(selectButton, e => OnInstrumentRowGuiInput(e, index, row, selectButton));
                 row.AddChild(selectButton);
 
                 var duplicateButton = new Button
@@ -602,7 +613,7 @@ namespace ChiptrackerNet.UI
                     TooltipText = "Duplicate this instrument, including its layers",
                 };
                 ApplyCompactStyle(duplicateButton);
-                ConnectPressed(duplicateButton, () => OnDuplicateInstrumentPressed(i));
+                ConnectPressed(duplicateButton, () => OnDuplicateInstrumentPressed(index));
                 row.AddChild(duplicateButton);
 
                 _instrumentListContainer.AddChild(row);
@@ -687,6 +698,9 @@ namespace ChiptrackerNet.UI
             var group = new ButtonGroup();
             for (var i = 0; i < Song.Patterns.Count; i++)
             {
+                // Per-iteration copy for the closures below -- see
+                // RebuildChannelList.
+                var index = i;
                 var pattern = Song.Patterns[i];
                 var row = new HBoxContainer();
 
@@ -700,13 +714,13 @@ namespace ChiptrackerNet.UI
                     TooltipText = "Click to view, double-click to rename",
                 };
                 ApplySelectionStyle(nameButton);
-                ConnectPressed(nameButton, () => OnPatternNamePressed(i));
-                ConnectGuiInput(nameButton, e => OnPatternNameGuiInput(e, i, row, nameButton));
+                ConnectPressed(nameButton, () => OnPatternNamePressed(index));
+                ConnectGuiInput(nameButton, e => OnPatternNameGuiInput(e, index, row, nameButton));
                 row.AddChild(nameButton);
 
                 var addToOrderButton = new Button { Icon = Icon("Add"), TooltipText = "Add to order list" };
                 ApplyCompactStyle(addToOrderButton);
-                ConnectPressed(addToOrderButton, () => OnAddPatternToOrder(i));
+                ConnectPressed(addToOrderButton, () => OnAddPatternToOrder(index));
                 row.AddChild(addToOrderButton);
 
                 var rightSpacer = new Control { CustomMinimumSize = new Vector2(8, 0) };
@@ -793,6 +807,9 @@ namespace ChiptrackerNet.UI
             var group = new ButtonGroup();
             for (var i = 0; i < Song.OrderList.Count; i++)
             {
+                // Per-iteration copy for the closures below -- see
+                // RebuildChannelList.
+                var index = i;
                 var patternIndex = Song.OrderList[i];
                 var patternName = "?";
                 if (patternIndex >= 0 && patternIndex < Song.Patterns.Count)
@@ -807,7 +824,7 @@ namespace ChiptrackerNet.UI
                     Alignment = HorizontalAlignment.Left,
                 };
                 ApplySelectionStyle(selectButton);
-                ConnectPressed(selectButton, () => OnOrderRowPressed(i, patternIndex));
+                ConnectPressed(selectButton, () => OnOrderRowPressed(index, patternIndex));
                 _orderListContainer.AddChild(selectButton);
             }
         }
