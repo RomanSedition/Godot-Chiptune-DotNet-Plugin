@@ -15,11 +15,12 @@ namespace ChiptrackerNet.Engine
     // _Edit()) -- the tab binds directly to Song, so edits through the
     // tracker UI or the editor MCP bridge write straight into this
     // node's data.
-    // NOT [GlobalClass]: the GDScript addon already declares
-    // `class_name ChiptrackerSongNode` -- see
-    // feedback_godot_csharp_globalclass_collision in memory. Referenced
-    // by namespace (ChiptrackerNet.Engine.ChiptrackerSongNode) instead.
+    // [GlobalClass] is safe in this project only: it has no GDScript
+    // addon to collide with (see feedback_godot_csharp_globalclass_collision
+    // in memory -- that rule is about the dual GD/.NET project this was
+    // split from, not this one). Do not backport this attribute there.
     [Tool]
+    [GlobalClass]
     public partial class ChiptrackerSongNode : Node
     {
         [Export] public Song Song { get; set; } = new();

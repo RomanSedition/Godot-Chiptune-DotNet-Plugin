@@ -15,10 +15,12 @@ namespace ChiptrackerNet.Engine
     // editor plugin, etc.) to decide what a note-on/off or knob turn
     // actually does.
     //
-    // Explicitly NOT [GlobalClass] -- GDScript already declares
-    // class_name ChiptrackerMidiNode, and Godot's global-class registry
-    // is a single flat namespace shared between GDScript and C#.
+    // [GlobalClass] is safe in this project only: it has no GDScript
+    // addon to collide with (see feedback_godot_csharp_globalclass_collision
+    // in memory -- that rule is about the dual GD/.NET project this was
+    // split from, not this one). Do not backport this attribute there.
     [Tool]
+    [GlobalClass]
     public partial class ChiptrackerMidiNode : Node
     {
         [Export] public MidiKeyboard KeyboardProfile { get; set; }
