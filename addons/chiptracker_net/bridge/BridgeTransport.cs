@@ -25,6 +25,23 @@ namespace ChiptrackerNet.Bridge
         readonly TcpServer _tcpServer = new();
         readonly List<WebSocketPeer> _peers = new();
 
+        // Godot's WebSocketPeer defaults to a 64 KB buffer each way, and a
+        // whole-song response blows straight past it: get_song on the
+        // Shovel Knight transcription (8 patterns x ~192 rows x 10
+        // channels, ~15k cells at ~66 bytes of JSON each) is around 1 MB.
+        // Over the default the send is simply refused --
+        //   wsl_peer.cpp:790 ... Returning: ERR_OUT_OF_MEMORY
+        // -- and the caller gets a failed command with no clue why, so the
+        // tool looked broken on the one song most worth inspecting.
+        //
+        // 8 MB is ~8x the largest real response, and is a per-peer
+        // allocation with only a handful of peers ever connected to an
+        // editor-side tool bridge. It is a ceiling, not a fix for
+        // unbounded growth: a song that outgrows it fails the same
+        // visible way rather than corrupting anything, and the answer then
+        // is to chunk the response, not to keep raising this.
+        const int PeerBufferSize = 8 * 1024 * 1024;
+
         public void Listen(int port)
         {
             var err = _tcpServer.Listen((ushort)port);
@@ -55,7 +72,16 @@ namespace ChiptrackerNet.Bridge
             while (_tcpServer.IsConnectionAvailable())
             {
                 var conn = _tcpServer.TakeConnection();
-                var ws = new WebSocketPeer();
+                // Both sizes have to be set before AcceptStream -- they
+                // size the peer's buffers as it is brought up, and are
+                // ignored once it is live. Inbound is raised to match so a
+                // future bulk command (a whole-song import, say) doesn't
+                // hit the mirror image of the same wall.
+                var ws = new WebSocketPeer
+                {
+                    InboundBufferSize = PeerBufferSize,
+                    OutboundBufferSize = PeerBufferSize,
+                };
                 if (ws.AcceptStream(conn) == Error.Ok)
                     _peers.Add(ws);
             }
