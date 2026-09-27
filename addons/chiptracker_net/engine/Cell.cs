@@ -4,7 +4,9 @@ using Godot.Collections;
 namespace ChiptrackerNet.Engine
 {
     // C# counterpart of addons/chiptracker/engine/cell.gd.
+    // [GlobalClass]: safe in this project only -- see Song.cs.
     [Tool]
+    [GlobalClass]
     public partial class Cell : Resource
     {
         [Export] public int Note { get; set; } = -1; // MIDI-style note number, -1 = empty/no-op

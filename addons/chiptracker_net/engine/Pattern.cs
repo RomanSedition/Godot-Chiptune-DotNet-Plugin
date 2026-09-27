@@ -4,7 +4,9 @@ using Godot.Collections;
 namespace ChiptrackerNet.Engine
 {
     // C# counterpart of addons/chiptracker/engine/pattern.gd.
+    // [GlobalClass]: safe in this project only -- see Song.cs.
     [Tool]
+    [GlobalClass]
     public partial class Pattern : Resource
     {
         // Empty means display as "Pattern N" by index; a set name shows instead.

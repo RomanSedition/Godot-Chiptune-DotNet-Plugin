@@ -3,7 +3,9 @@ using Godot;
 namespace ChiptrackerNet.Engine
 {
     // C# counterpart of addons/chiptracker/engine/channel.gd.
+    // [GlobalClass]: safe in this project only -- see Song.cs.
     [Tool]
+    [GlobalClass]
     public partial class Channel : Resource
     {
         [Export] public string Name { get; set; } = "";

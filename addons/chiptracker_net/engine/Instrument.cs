@@ -4,7 +4,9 @@ using Godot.Collections;
 namespace ChiptrackerNet.Engine
 {
     // C# counterpart of addons/chiptracker/engine/instrument.gd.
+    // [GlobalClass]: safe in this project only -- see Song.cs.
     [Tool]
+    [GlobalClass]
     public partial class Instrument : Resource
     {
         [Export] public int Id { get; set; } = 0;
