@@ -228,7 +228,7 @@ namespace ChiptrackerNet.UI
             _dock.Connect(ChiptrackerDock.SignalName.InstrumentRenamed, new Callable(this, MethodName.OnInstrumentRenamed));
             _dock.Connect(ChiptrackerDock.SignalName.ChannelsChanged, new Callable(this, MethodName.OnChannelsChanged));
             _dock.Connect(ChiptrackerDock.SignalName.ChannelRenamed, new Callable(this, MethodName.OnChannelRenamed));
-            _dock.Connect(ChiptrackerDock.SignalName.ChannelMutated, new Callable(this, MethodName.MarkDirty));
+            _dock.Connect(ChiptrackerDock.SignalName.ChannelMutated, new Callable(this, MethodName.OnChannelMutated));
             _dock.Connect(ChiptrackerDock.SignalName.PatternsChanged, new Callable(this, MethodName.OnPatternsChanged));
             _dock.Connect(ChiptrackerDock.SignalName.PatternRenamed, new Callable(this, MethodName.OnPatternRenamed));
             _dock.Connect(ChiptrackerDock.SignalName.OrderListChanged, new Callable(this, MethodName.MarkDirty));
@@ -712,6 +712,23 @@ namespace ChiptrackerNet.UI
         // EditorBridge (a different namespace) needs to trigger the same
         // dirty-marking an external tool-call mutation should cause.
         internal void MarkDirtyExternal() => MarkDirty();
+
+        // A mute/solo button. Besides invalidating the cache, this pushes
+        // the new audibility into whatever is playing right now: the mix
+        // reads a snapshot rather than Channel.Muted/.Solo directly,
+        // because mixing happens on PlaybackEngine's audio thread and
+        // those are marshalled Godot reads (see
+        // PlaybackState.RefreshAudibility). Without this, toggling M or S
+        // mid-pass wouldn't be heard until playback restarted.
+        //
+        // Only the live engine: CachedPlaybackEngine streams audio that
+        // already had mute/solo baked in when it was rendered, so its mix
+        // can't change without a cache rebuild.
+        void OnChannelMutated()
+        {
+            _playbackEngine.State?.RefreshAudibility();
+            MarkDirty();
+        }
 
         // Set when a ChiptrackerSongNode is selected in the Scene dock
         // (see ChiptrackerNetPlugin's _Handles()/_Edit()) -- Song then IS

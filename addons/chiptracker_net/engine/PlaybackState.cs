@@ -128,6 +128,7 @@ namespace ChiptrackerNet.Engine
             RowIndex = rowIndex;
             SamplesIntoRow = 0;
             Playing = true;
+            RefreshAudibility();
             TriggerRow();
         }
 
@@ -161,19 +162,33 @@ namespace ChiptrackerNet.Engine
 
         float RowDurationSec() => 60.0f / Song.Tempo / Song.RowsPerBeat;
 
-        // Which channels are in the mix, and how many -- refreshed once per
-        // row (RefreshAudibility, from TriggerRow) rather than read per
-        // sample. Channel.Muted/.Solo and Song.IsMetronomeChannel() are all
-        // marshalled Godot reads (the last one compares a marshalled
-        // string), and mixing runs on PlaybackEngine's audio thread, where
-        // touching Godot objects isn't safe -- same reasoning as
-        // Synth.VoiceSetup. A mute/solo toggled mid-row lands on the next
-        // row, which at tracker row lengths is imperceptible.
+        // Which channels are in the mix, and how many. Channel.Muted/.Solo
+        // and Song.IsMetronomeChannel() are all marshalled Godot reads (the
+        // last one compares a marshalled string), so this is snapshotted
+        // rather than read while mixing: mixing runs on PlaybackEngine's
+        // audio thread, and reading Godot objects there is exactly what
+        // Synth.VoiceSetup exists to avoid.
+        //
+        // RefreshAudibility() must therefore only ever be called from the
+        // main thread -- PlayFrom() (every caller of which is main-thread:
+        // PlaybackEngine.Play, WavRenderer, PatternAudioCache.RenderPattern)
+        // and ChiptrackerMainView when a mute/solo button changes mid-pass.
+        // Reading these off the audio thread silently yields stale values,
+        // which is what made the dock's M/S buttons look dead during live
+        // playback while still working in renders.
         bool[] _audible;
         int _audibleCount;
 
-        void RefreshAudibility()
+        public void RefreshAudibility()
         {
+            // Song is a mutable field and channels can be added while a
+            // state exists, so the voice list isn't necessarily still the
+            // width it was constructed at.
+            while (_voices.Count < Song.Channels.Count)
+                _voices.Add(new ChannelVoice());
+            if (_audible.Length != _voices.Count)
+                _audible = new bool[_voices.Count];
+
             var anySolo = false;
             foreach (var channel in Song.Channels)
             {
@@ -198,7 +213,11 @@ namespace ChiptrackerNet.Engine
         float MixSample()
         {
             var total = 0.0f;
-            for (var i = 0; i < _voices.Count; i++)
+            // _audible is resized alongside _voices by RefreshAudibility,
+            // but that only runs on the main thread -- so bound by both
+            // rather than trusting them to agree on the audio thread.
+            var count = Mathf.Min(_voices.Count, _audible.Length);
+            for (var i = 0; i < count; i++)
             {
                 if (!_audible[i])
                     continue;
@@ -211,10 +230,15 @@ namespace ChiptrackerNet.Engine
         {
             lock (Song.PlaybackLock)
             {
-                RefreshAudibility();
                 var pattern = CurrentPattern();
                 var rowCells = pattern.Rows[RowIndex];
-                for (var chIdx = 0; chIdx < rowCells.Count; chIdx++)
+                // Bounded by the voices too, not just the row width: this
+                // runs on the audio thread, where an IndexOutOfRange would
+                // take the editor down (see PlaybackEngine's generation
+                // loop), and a pattern can be wider than the voice list if
+                // Song was swapped or grew mid-pass.
+                var channelCount = Mathf.Min(rowCells.Count, _voices.Count);
+                for (var chIdx = 0; chIdx < channelCount; chIdx++)
                 {
                     var cell = rowCells[chIdx].As<Cell>();
                     if (cell.Note >= 0)

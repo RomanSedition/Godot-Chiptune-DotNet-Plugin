@@ -111,7 +111,27 @@ namespace ChiptrackerNet.Engine
         // time has actually passed. Same carry-forward logic the old
         // _Process() used, just paced by a Stopwatch instead of Godot's
         // per-frame delta.
+        //
+        // Nothing may escape this method. An unhandled exception on the
+        // main thread is caught and logged by Godot, but on a raw
+        // System.Threading.Thread it aborts the whole editor process --
+        // a playback bug must not be able to take the editor down with it.
         void RunGenerationLoop()
+        {
+            try
+            {
+                Generate();
+            }
+            catch (System.Exception e)
+            {
+                _running = false;
+                // Not GD.PushError: that's a Godot call, and this is the
+                // audio thread. CallDeferred hops to the main thread first.
+                Callable.From(() => GD.PushError($"Chiptracker: playback thread stopped after {e}")).CallDeferred();
+            }
+        }
+
+        void Generate()
         {
             var clock = Stopwatch.StartNew();
             var lastElapsed = clock.Elapsed.TotalSeconds;
