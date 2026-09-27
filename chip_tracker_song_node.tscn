@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://d3vos0wwwsrg8"]
+
+[ext_resource type="Script" uid="uid://bs541poads7l7" path="res://addons/chiptracker_net/engine/ChiptrackerSongNode.cs" id="1_wsmfx"]
+[ext_resource type="Script" uid="uid://fkhoak7ffhxw" path="res://addons/chiptracker_net/engine/Channel.cs" id="2_ma7p7"]
+[ext_resource type="Script" uid="uid://sbm6ie3s0lo8" path="res://addons/chiptracker_net/engine/ChannelGroup.cs" id="3_7iae7"]
+[ext_resource type="Script" uid="uid://b56h1bhrtuhfe" path="res://addons/chiptracker_net/engine/Instrument.cs" id="4_li0do"]
+[ext_resource type="Script" uid="uid://c4v0u6v8krpta" path="res://addons/chiptracker_net/engine/Pattern.cs" id="5_l272b"]
+[ext_resource type="Script" uid="uid://dr6d64cvmmtg0" path="res://addons/chiptracker_net/engine/Song.cs" id="6_k874o"]
+[ext_resource type="Script" uid="uid://bierw181k6xwu" path="res://addons/chiptracker_net/engine/ChiptrackerMidiNode.cs" id="7_2d40c"]
+
+[sub_resource type="Resource" id="Resource_4pbp0"]
+script = ExtResource("3_7iae7")
+
+[sub_resource type="Resource" id="Resource_0vn8d"]
+script = ExtResource("6_k874o")
+Groups = Array[ExtResource("3_7iae7")]([SubResource("Resource_4pbp0")])
+
+[node name="ChipTrackerSongNode" type="Node" unique_id=1699708606]
+script = ExtResource("1_wsmfx")
+Song = SubResource("Resource_0vn8d")
+
+[node name="ChiptrackerMidiNode" type="Node" parent="." unique_id=1791821718]
+script = ExtResource("7_2d40c")

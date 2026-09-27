@@ -41,7 +41,7 @@ namespace ChiptrackerNet.Engine
             [CcTapTempo] = new Binding { Action = ActionTapTempo, Input = "TAP TEMPO" },
         };
 
-        const string DiagramPath = "res://MIDI/Akai MPK Mini 4/Akai Mini 4 Diagram.jpg";
+        const string DiagramPath = "res://addons/chiptracker_net/MIDI/Akai MPK Mini 4/Akai Mini 4 Diagram.jpg";
 
         const string Unassigned = "Unassigned";
         const string Reserved = "Reserved: the device keeps this button and sends no MIDI";

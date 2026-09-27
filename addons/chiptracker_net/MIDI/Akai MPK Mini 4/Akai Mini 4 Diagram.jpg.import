@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://btomge7d6twv3"
-path="res://.godot/imported/Akai Mini 4 Diagram.jpg-98ebe44da579b1ebcdb548bab76a6efb.ctex"
+path="res://.godot/imported/Akai Mini 4 Diagram.jpg-16ae1d8e64f317e6ece1a2c803e0ec24.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://MIDI/Akai MPK Mini 4/Akai Mini 4 Diagram.jpg"
-dest_files=["res://.godot/imported/Akai Mini 4 Diagram.jpg-98ebe44da579b1ebcdb548bab76a6efb.ctex"]
+source_file="res://addons/chiptracker_net/MIDI/Akai MPK Mini 4/Akai Mini 4 Diagram.jpg"
+dest_files=["res://.godot/imported/Akai Mini 4 Diagram.jpg-16ae1d8e64f317e6ece1a2c803e0ec24.ctex"]
 
 [params]
 
