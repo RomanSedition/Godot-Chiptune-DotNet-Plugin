@@ -418,6 +418,14 @@ namespace ChiptrackerNet.Tests
             view._recordLatencyMs = 0.0f;
             view._patternGrid.SelectedChannel = 0;
 
+            // Count-in only exists on the cached engine's Play() overload --
+            // the live engine (what a dirty cache falls back to) has no
+            // count-in parameter at all -- so this test needs a clean
+            // cache first, same as a real leaving-Edit-mode would give it.
+            view._cellEditor.ToggleEditMode();
+            view._cellEditor.ToggleEditMode();
+            Check(failures, view._audioCache.IsClean(song), "sanity: cache is clean before testing count-in");
+
             // Count-in off: Record just arms (nothing starts).
             view._countIn = false;
             view._cellEditor.ToggleRecord();

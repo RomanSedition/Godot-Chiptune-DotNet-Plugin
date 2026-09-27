@@ -192,6 +192,14 @@ namespace ChiptrackerNet.Tests
             mainView._cellEditor.OnEditModeToggled(false);
             Check(failures, mainView._transportBar._cacheClean, "leaving Edit mode rebuilds the cache and marks it clean");
 
+            // Play with a clean cache streams via the cached engine.
+            mainView.OnPlayPressed();
+            Check(failures, mainView._cachedPlaybackEngine.State.Playing, "Play with a clean cache starts cached playback");
+            Check(failures, mainView._patternGrid.PlaybackState == mainView._cachedPlaybackEngine.State,
+                "the grid's playback cursor points at the cached engine's state");
+            mainView.OnStopPressed();
+            Check(failures, !mainView._cachedPlaybackEngine.State.Playing, "Stop halts cached playback");
+
             // A cell edit invalidates it again.
             mainView._patternGrid.SelectedRow = 1;
             mainView._patternGrid.SelectedChannel = 0;
@@ -200,16 +208,16 @@ namespace ChiptrackerNet.Tests
             mainView._cellEditor.OnNoteChanged(65);
             Check(failures, !mainView._transportBar._cacheClean, "editing a cell invalidates the cache again");
 
-            // Play streams via the cached engine (not the live one --
-            // that's bar-preview-only after M8) without rebuilding first,
-            // even though the cache is still dirty from the edit above.
+            // Play with a dirty cache falls back to the live engine instead
+            // of streaming stale cached audio, and does NOT rebuild.
             mainView.OnPlayPressed();
             Check(failures, !mainView._transportBar._cacheClean, "pressing Play does not rebuild a dirty cache");
-            Check(failures, mainView._cachedPlaybackEngine.State.Playing, "Play starts cached playback anyway");
-            Check(failures, mainView._patternGrid.PlaybackState == mainView._cachedPlaybackEngine.State,
-                "the grid's playback cursor points at the cached engine's state, not the live one");
+            Check(failures, mainView._playbackEngine.State.Playing, "Play with a dirty cache falls back to live playback");
+            Check(failures, !mainView._cachedPlaybackEngine.State.Playing, "...and does not touch the cached engine");
+            Check(failures, mainView._patternGrid.PlaybackState == mainView._playbackEngine.State,
+                "the grid's playback cursor points at the live engine's state while dirty");
             mainView.OnStopPressed();
-            Check(failures, !mainView._cachedPlaybackEngine.State.Playing, "Stop halts cached playback");
+            Check(failures, !mainView._playbackEngine.State.Playing, "Stop halts live playback too");
 
             // Leaving Edit mode is still the only thing that rebuilds it.
             mainView._cellEditor._editModeButton.ButtonPressed = true;

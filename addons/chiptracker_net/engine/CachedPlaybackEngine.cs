@@ -150,7 +150,10 @@ namespace ChiptrackerNet.Engine
 
         public void Stop()
         {
-            if (State == null)
+            // _player stays null if State was assigned directly rather
+            // than via Setup() (a test-only shortcut for injecting a fake
+            // cursor -- see LiveRecordTest.TestMainViewTakes).
+            if (State == null || _player == null)
                 return;
             State.Playing = false;
             SetProcess(false);

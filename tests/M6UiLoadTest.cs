@@ -267,10 +267,11 @@ namespace ChiptrackerNet.Tests
             mainView._patternGrid.SetPatternIndex(1);
             mainView._patternGrid.SelectedRow = 3;
             mainView.OnPlayPressed();
-            // M8: Play streams the pre-rendered cache via
-            // _cachedPlaybackEngine, not _playbackEngine (that one's now
-            // only for bar preview).
-            Check(failures, mainView._cachedPlaybackEngine.State.OrderIndex == 1, $"Play starts from the viewed pattern's order-list position (got {mainView._cachedPlaybackEngine.State.OrderIndex})");
+            // Whichever engine Play used (cached when clean, live when
+            // dirty -- this song's cache hasn't been rebuilt since this
+            // mainView was created, so it's dirty here), the grid's
+            // playback cursor points at it.
+            Check(failures, mainView._patternGrid.PlaybackState.OrderIndex == 1, $"Play starts from the viewed pattern's order-list position (got {mainView._patternGrid.PlaybackState.OrderIndex})");
             mainView.OnStopPressed();
 
             // Bar preview (spacebar in Edit mode): plays just the 16-row

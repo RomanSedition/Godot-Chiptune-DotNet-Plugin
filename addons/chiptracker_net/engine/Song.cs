@@ -29,6 +29,15 @@ namespace ChiptrackerNet.Engine
         // fills in.
         [Export] public Array<ChannelGroup> Groups { get; set; } = new();
 
+        // Guards Patterns/Channels/Instruments against concurrent access
+        // between a PlaybackEngine's background generation thread
+        // (PlaybackState.TriggerRow/RowsUntilNextNote) and main-thread edits
+        // made while that engine is playing (live recording -- see
+        // ChiptrackerMainView.OnNoteKeyPressed). Not [Export]: pure runtime
+        // state, one per Song object so every engine that might be playing
+        // this Song shares the same lock, never serialized.
+        public readonly object PlaybackLock = new();
+
         // Whether the first beat of each bar ticks louder than the other
         // beats. Only meaningful while a metronome exists (see AddMetronome()).
         [Export] public bool MetronomeAccent { get; set; } = true;

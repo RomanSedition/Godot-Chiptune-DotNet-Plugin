@@ -22,8 +22,93 @@ namespace ChiptrackerNet.Engine
         // audible while working.
         public bool ExcludeMetronome;
 
-        readonly List<float[]> _channelBuffers = new();
-        readonly List<int> _channelCursors = new();
+        // One sounding note on one channel, generated a sample at a time
+        // rather than rendered whole at trigger time -- see "Playback
+        // performance" in CHIPTRACKER_SPEC.md. A long-sustaining note used
+        // to cost its entire length (seconds of audio) inside the
+        // TriggerRow() that started it, which is what made dense rows
+        // stutter; now each sample costs the same tiny amount whenever it's
+        // actually needed.
+        class ChannelVoice
+        {
+            public Synth.VoiceSetup Setup;
+            public Synth.VoiceSetup[] LayerSetups = System.Array.Empty<Synth.VoiceSetup>();
+            public float[] LayerPhases = System.Array.Empty<float>();
+            public System.Random[] LayerRngs = System.Array.Empty<System.Random>();
+
+            public bool Active;
+            public float Duration;
+            public int TotalSamples;
+            public int SampleIndex;
+            public float Phase;
+            public System.Random Rng;
+            public float VolScale = 1.0f;
+
+            // The current, not-yet-consumed sample. Computed on demand so
+            // ChannelRawSample() can peek at it before AdvanceSample() has
+            // ever run (M3PlaybackTest relies on exactly that), and so it's
+            // only ever computed once per sample.
+            float _current;
+            bool _hasCurrent;
+
+            public float Peek()
+            {
+                if (_hasCurrent)
+                    return _current;
+                _current = Generate();
+                _hasCurrent = true;
+                return _current;
+            }
+
+            // The peeked sample, with phase/index advanced past it.
+            public void Advance()
+            {
+                Peek();
+                _hasCurrent = false;
+                SampleIndex++;
+            }
+
+            public void Start(Instrument instrument, int note, float duration, float volScale)
+            {
+                Setup = new Synth.VoiceSetup(instrument, note, SampleRate);
+                var layerCount = instrument.Layers.Count;
+                LayerSetups = new Synth.VoiceSetup[layerCount];
+                LayerPhases = new float[layerCount];
+                LayerRngs = new System.Random[layerCount];
+                for (var i = 0; i < layerCount; i++)
+                {
+                    var layer = instrument.Layers[i];
+                    LayerSetups[i] = new Synth.VoiceSetup(layer, layer.ResolvedLayerNote(note), SampleRate);
+                    LayerRngs[i] = new System.Random();
+                }
+                Active = true;
+                Duration = duration;
+                TotalSamples = Mathf.RoundToInt(duration * SampleRate);
+                SampleIndex = 0;
+                Phase = 0.0f;
+                Rng = new System.Random();
+                VolScale = volScale;
+                _hasCurrent = false;
+                _current = 0.0f;
+            }
+
+            // Mirrors Synth.GenerateLayeredBuffer's sum-the-layers shape,
+            // one sample at a time. Past the note's planned length it's
+            // silent, the same as running off the end of the rendered
+            // buffer this replaced.
+            float Generate()
+            {
+                if (!Active || SampleIndex >= TotalSamples)
+                    return 0.0f;
+                var t = (float)SampleIndex / SampleRate;
+                var sample = Synth.NextSample(Setup, ref Phase, t, Duration, Rng);
+                for (var i = 0; i < LayerSetups.Length; i++)
+                    sample += Synth.NextSample(LayerSetups[i], ref LayerPhases[i], t, Duration, LayerRngs[i]);
+                return sample * VolScale;
+            }
+        }
+
+        readonly List<ChannelVoice> _voices = new();
 
         public PlaybackState(Song song, bool loop = false)
         {
@@ -31,10 +116,8 @@ namespace ChiptrackerNet.Engine
             Loop = loop;
             SamplesPerRow = Mathf.RoundToInt(SampleRate * RowDurationSec());
             for (var i = 0; i < song.Channels.Count; i++)
-            {
-                _channelBuffers.Add(System.Array.Empty<float>());
-                _channelCursors.Add(0);
-            }
+                _voices.Add(new ChannelVoice());
+            _audible = new bool[_voices.Count];
         }
 
         public void PlayFrom(int orderIndex = 0, int rowIndex = 0)
@@ -56,11 +139,8 @@ namespace ChiptrackerNet.Engine
             if (!Playing)
                 return 0.0f;
             var sample = MixSample();
-            for (var i = 0; i < _channelCursors.Count; i++)
-            {
-                if (_channelCursors[i] < _channelBuffers[i].Length)
-                    _channelCursors[i]++;
-            }
+            foreach (var voice in _voices)
+                voice.Advance();
             SamplesIntoRow++;
             if (SamplesIntoRow >= SamplesPerRow)
             {
@@ -77,16 +157,22 @@ namespace ChiptrackerNet.Engine
         }
 
         // Current unmixed sample for one channel; exposed for testing/metering.
-        public float ChannelRawSample(int channelIdx)
-        {
-            var buf = _channelBuffers[channelIdx];
-            var cursor = _channelCursors[channelIdx];
-            return cursor < buf.Length ? buf[cursor] : 0.0f;
-        }
+        public float ChannelRawSample(int channelIdx) => _voices[channelIdx].Peek();
 
         float RowDurationSec() => 60.0f / Song.Tempo / Song.RowsPerBeat;
 
-        float MixSample()
+        // Which channels are in the mix, and how many -- refreshed once per
+        // row (RefreshAudibility, from TriggerRow) rather than read per
+        // sample. Channel.Muted/.Solo and Song.IsMetronomeChannel() are all
+        // marshalled Godot reads (the last one compares a marshalled
+        // string), and mixing runs on PlaybackEngine's audio thread, where
+        // touching Godot objects isn't safe -- same reasoning as
+        // Synth.VoiceSetup. A mute/solo toggled mid-row lands on the next
+        // row, which at tracker row lengths is imperceptible.
+        bool[] _audible;
+        int _audibleCount;
+
+        void RefreshAudibility()
         {
             var anySolo = false;
             foreach (var channel in Song.Channels)
@@ -97,44 +183,53 @@ namespace ChiptrackerNet.Engine
                     break;
                 }
             }
-
-            var total = 0.0f;
-            var audibleCount = 0;
-            for (var i = 0; i < _channelBuffers.Count; i++)
+            _audibleCount = 0;
+            for (var i = 0; i < _audible.Length && i < Song.Channels.Count; i++)
             {
                 var channel = Song.Channels[i];
-                var audible = anySolo ? channel.Solo : !channel.Muted;
-                if (!audible || (ExcludeMetronome && Song.IsMetronomeChannel(i)))
-                    continue;
-                audibleCount++;
-                var buf = _channelBuffers[i];
-                var cursor = _channelCursors[i];
-                if (cursor < buf.Length)
-                    total += buf[cursor];
+                var audible = (anySolo ? channel.Solo : !channel.Muted)
+                    && !(ExcludeMetronome && Song.IsMetronomeChannel(i));
+                _audible[i] = audible;
+                if (audible)
+                    _audibleCount++;
             }
-            return Mathf.Clamp(total / Mathf.Max(1, audibleCount), -1.0f, 1.0f);
+        }
+
+        float MixSample()
+        {
+            var total = 0.0f;
+            for (var i = 0; i < _voices.Count; i++)
+            {
+                if (!_audible[i])
+                    continue;
+                total += _voices[i].Peek();
+            }
+            return Mathf.Clamp(total / Mathf.Max(1, _audibleCount), -1.0f, 1.0f);
         }
 
         void TriggerRow()
         {
-            var pattern = CurrentPattern();
-            var rowCells = pattern.Rows[RowIndex];
-            for (var chIdx = 0; chIdx < rowCells.Count; chIdx++)
+            lock (Song.PlaybackLock)
             {
-                var cell = rowCells[chIdx].As<Cell>();
-                if (cell.Note >= 0)
+                RefreshAudibility();
+                var pattern = CurrentPattern();
+                var rowCells = pattern.Rows[RowIndex];
+                for (var chIdx = 0; chIdx < rowCells.Count; chIdx++)
                 {
-                    var instrument = FindInstrument(cell.InstrumentId);
-                    if (instrument != null)
+                    var cell = rowCells[chIdx].As<Cell>();
+                    if (cell.Note >= 0)
                     {
-                        var steps = RowsUntilNextNote(chIdx, OrderIndex, RowIndex);
-                        var duration = steps * RowDurationSec();
-                        var volScale = cell.Volume / 15.0f;
-                        var buf = Synth.GenerateLayeredBuffer(instrument, cell.Note, duration, SampleRate);
-                        for (var i = 0; i < buf.Length; i++)
-                            buf[i] *= volScale;
-                        _channelBuffers[chIdx] = buf;
-                        _channelCursors[chIdx] = 0;
+                        var instrument = FindInstrument(cell.InstrumentId);
+                        if (instrument != null)
+                        {
+                            var steps = RowsUntilNextNote(chIdx, OrderIndex, RowIndex);
+                            var duration = steps * RowDurationSec();
+                            // Only sets the voice up; the samples themselves
+                            // are generated one at a time as playback
+                            // reaches them (ChannelVoice.Peek/Advance), so a
+                            // long note costs nothing extra here.
+                            _voices[chIdx].Start(instrument, cell.Note, duration, cell.Volume / 15.0f);
+                        }
                     }
                 }
             }

@@ -24,37 +24,82 @@ namespace ChiptrackerNet.Engine
             return $"{NoteNames[note % 12]}{octave}";
         }
 
+        // Everything one sounding note needs, snapshotted into plain
+        // managed types up front.
+        //
+        // Nothing in here is a Godot object, and that is deliberate: a
+        // PlaybackState voice is generated on PlaybackEngine's background
+        // audio thread (see "Playback performance" in CHIPTRACKER_SPEC.md),
+        // and Godot's C# objects -- Instrument's marshalled property
+        // getters, Array<float>, RandomNumberGenerator -- are refcounted
+        // native objects that are not safe to create, read, and release off
+        // the main thread. Reading them per sample also crosses the
+        // marshalling boundary 44100 times a second per channel for values
+        // that never change mid-note. Snapshotting fixes both.
+        internal readonly struct VoiceSetup
+        {
+            public readonly string Waveform;
+            public readonly float DutyCycle;
+            public readonly float PhaseInc;
+            public readonly float[] Envelope;
+            public readonly float[] EnvelopeTimes;  // null when evenly spaced
+            public readonly float[] PitchEnvelope;  // null when there's no bend
+            public readonly float[] PitchEnvelopeTimes;
+
+            public VoiceSetup(Instrument instrument, int note, int sampleRate)
+            {
+                Waveform = instrument.Waveform;
+                DutyCycle = instrument.DutyCycle;
+                PhaseInc = NoteToFreq(note) / sampleRate;
+                Envelope = ToFloats(instrument.Envelope);
+                // Null (evenly spaced points) unless the instrument has its own times.
+                EnvelopeTimes = instrument.HasCustomTimes() ? ToFloats(instrument.EnvelopeTimes) : null;
+                // Pitch bend: null means no bend, the common case, so it's
+                // skipped entirely rather than costing a pow() every sample for nothing.
+                PitchEnvelope = instrument.PitchEnvelope.Count > 0 ? ToFloats(instrument.PitchEnvelope) : null;
+                PitchEnvelopeTimes = instrument.HasCustomPitchTimes() ? ToFloats(instrument.PitchEnvelopeTimes) : null;
+            }
+        }
+
+        static float[] ToFloats(Array<float> values)
+        {
+            var copy = new float[values.Count];
+            for (var i = 0; i < copy.Length; i++)
+                copy[i] = values[i];
+            return copy;
+        }
+
+        // One sample of `setup`'s instrument at `phase`, `t` seconds into a
+        // note of `duration`, advancing `phase` to the next sample's.
+        // The shared body of GenerateBuffer's loop and PlaybackState's
+        // streaming voices -- keep it that way, so offline renders and live
+        // playback can't drift apart.
+        internal static float NextSample(in VoiceSetup setup, ref float phase, float t, float duration, System.Random rng)
+        {
+            var raw = WaveformSample(setup.Waveform, phase, setup.DutyCycle, rng);
+            var env = EnvelopeValue(setup.Envelope, t, duration, setup.EnvelopeTimes);
+            var step = setup.PhaseInc;
+            if (setup.PitchEnvelope != null)
+            {
+                var semitones = EnvelopeValue(setup.PitchEnvelope, t, duration, setup.PitchEnvelopeTimes);
+                step *= Mathf.Pow(2.0f, semitones / 12.0f);
+            }
+            phase = Mathf.PosMod(phase + step, 1.0f);
+            return raw * env;
+        }
+
         // Renders `duration` seconds of `instrument` playing `note` as mono samples in [-1, 1].
         public static float[] GenerateBuffer(Instrument instrument, int note, float duration, int sampleRate)
         {
             var frameCount = Mathf.RoundToInt(duration * sampleRate);
             var buffer = new float[frameCount];
 
-            var freq = NoteToFreq(note);
+            var setup = new VoiceSetup(instrument, note, sampleRate);
             var phase = 0.0f;
-            var phaseInc = freq / sampleRate;
-            var rng = new RandomNumberGenerator();
-            // Empty (evenly spaced points) unless the instrument has its own times.
-            var times = instrument.HasCustomTimes() ? instrument.EnvelopeTimes : new Array<float>();
-            // Pitch bend: empty means no bend, the common case, so it's
-            // skipped entirely rather than costing a pow() every sample for nothing.
-            var hasPitch = instrument.PitchEnvelope.Count > 0;
-            var pitchTimes = instrument.HasCustomPitchTimes() ? instrument.PitchEnvelopeTimes : new Array<float>();
+            var rng = new System.Random();
 
             for (var i = 0; i < frameCount; i++)
-            {
-                var raw = WaveformSample(instrument.Waveform, phase, instrument.DutyCycle, rng);
-                var t = (float)i / sampleRate;
-                var env = EnvelopeValue(instrument.Envelope, t, duration, times);
-                buffer[i] = raw * env;
-                var step = phaseInc;
-                if (hasPitch)
-                {
-                    var semitones = EnvelopeValue(instrument.PitchEnvelope, t, duration, pitchTimes);
-                    step *= Mathf.Pow(2.0f, semitones / 12.0f);
-                }
-                phase = Mathf.PosMod(phase + step, 1.0f);
-            }
+                buffer[i] = NextSample(setup, ref phase, (float)i / sampleRate, duration, rng);
 
             return buffer;
         }
@@ -99,13 +144,16 @@ namespace ChiptrackerNet.Engine
             return bytes;
         }
 
-        static float WaveformSample(string waveform, float phase, float dutyCycle, RandomNumberGenerator rng)
+        // System.Random, not Godot's RandomNumberGenerator: this runs on
+        // PlaybackEngine's audio thread, where a refcounted Godot object
+        // isn't safe to hold (see VoiceSetup).
+        static float WaveformSample(string waveform, float phase, float dutyCycle, System.Random rng)
         {
             return waveform switch
             {
                 "square" => phase < dutyCycle ? 1.0f : -1.0f,
                 "triangle" => phase < 0.5f ? -1.0f + 4.0f * phase : 3.0f - 4.0f * phase,
-                "noise" => rng.RandfRange(-1.0f, 1.0f),
+                "noise" => (float)(rng.NextDouble() * 2.0 - 1.0),
                 "sine" => Mathf.Sin(phase * Tau),
                 _ => 0.0f,
             };
@@ -124,18 +172,24 @@ namespace ChiptrackerNet.Engine
         // binary-search lookup to a plain-scan reference implementation
         // directly, the same way envelope_archetypes_test.gd calls
         // Synth._envelope_value() (GDScript has no real access enforcement).
-        internal static float EnvelopeValue(Array<float> envelope, float t, float duration, Array<float> times = null)
+        internal static float EnvelopeValue(Array<float> envelope, float t, float duration, Array<float> times = null) =>
+            EnvelopeValue(ToFloats(envelope), t, duration, times == null ? null : ToFloats(times));
+
+        // The real implementation, on plain arrays -- what the per-sample
+        // path actually calls (see VoiceSetup on why it never touches
+        // Godot collections). `times` is null when the points are evenly
+        // spaced.
+        internal static float EnvelopeValue(float[] envelope, float t, float duration, float[] times)
         {
-            times ??= new Array<float>();
-            if (envelope.Count == 0)
+            if (envelope.Length == 0)
                 return 1.0f;
-            if (envelope.Count == 1)
+            if (envelope.Length == 1)
                 return envelope[0];
 
             var progress = duration > 0.0f ? Mathf.Clamp(t / duration, 0.0f, 1.0f) : 0.0f;
-            if (times.Count == envelope.Count)
+            if (times != null && times.Length == envelope.Length)
             {
-                var last = envelope.Count - 1;
+                var last = envelope.Length - 1;
                 if (progress < times[0])
                     return envelope[0];
                 if (progress >= times[last])
@@ -159,7 +213,7 @@ namespace ChiptrackerNet.Engine
                     return envelope[low];
                 return Mathf.Lerp(envelope[low], envelope[low + 1], (progress - times[low]) / span);
             }
-            var segmentCount = envelope.Count - 1;
+            var segmentCount = envelope.Length - 1;
             var pos = progress * segmentCount;
             var idx = Mathf.Clamp((int)Mathf.Floor(pos), 0, segmentCount - 1);
             var frac = pos - idx;

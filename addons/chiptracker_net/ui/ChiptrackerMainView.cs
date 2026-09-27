@@ -15,10 +15,12 @@ namespace ChiptrackerNet.UI
     // profiles, the Akai AUTOMATION-button-toggles-Record mapping) --
     // that's the next deferred chunk. M8's pattern/song audio cache is
     // wired in (see _audioCache/RebuildCache/OnPlaybackLooped): the Play
-    // button streams from CachedPlaybackEngine, rebuilding first if a
-    // dirtying edit landed since the last rebuild; bar preview stays on
-    // the plain PlaybackEngine since it needs no caching. M9 live
-    // recording is wired in too (see _recording/PlayingCursor/
+    // button streams from CachedPlaybackEngine when the cache is clean,
+    // or falls back to live-synthesizing on the plain PlaybackEngine when
+    // it's dirty (see OnPlayPressed) -- Play itself never rebuilds, only
+    // leaving Edit mode does. Bar preview always uses the plain
+    // PlaybackEngine, clean or not, since a single bar needs no caching.
+    // M9 live recording is wired in too (see _recording/PlayingCursor/
     // LiveRecordTarget/EndTake): REC writes notes at the playing row
     // instead of the cursor, a recorded take groups into one undo step
     // via GridEditHistory's BeginGroup/EndGroup, and a looping pass
@@ -906,22 +908,18 @@ namespace ChiptrackerNet.UI
 
         internal bool IsPlaying() => PlayingCursor() != null;
 
-        // M8: Play always streams the pre-rendered cache rather than
-        // live-synthesizing. Bar preview is the one exception; it stays on
-        // _playbackEngine. Play itself never rebuilds -- leaving Edit mode
-        // (OnEditModeToggled) is the only rebuild trigger, so pressing Play
-        // with a dirty cache streams whatever was last rendered (silence
-        // for a pattern that's never been rendered at all) rather than
-        // pausing to rebuild first.
+        // M8: Play streams the pre-rendered cache when it's clean, and
+        // falls back to live-synthesizing (_playbackEngine, the same
+        // engine bar preview always used) when it's dirty, rather than
+        // streaming stale/incomplete cached audio. Play itself never
+        // rebuilds -- leaving Edit mode (OnEditModeToggled) is the only
+        // rebuild trigger -- so the cache is clean here exactly when the
+        // song hasn't changed since Edit mode was last left.
         internal void OnPlayPressed()
         {
             EndTake(); // pressing Play starts a fresh pass, so a fresh take
             if (Song == null || Song.OrderList.Count == 0)
                 return;
-            _cachedPlaybackEngine.Setup(Song, _audioPlayer, _audioCache);
-            _patternGrid.PlaybackState = _cachedPlaybackEngine.State;
-            _cachedPlaybackEngine.State.RowAdvanced += OnRowAdvanced;
-            _cachedPlaybackEngine.State.Finished += OnPlaybackFinished;
             // Start from wherever the currently-displayed pattern sits in
             // the order list, not always the very start of the song --
             // Play should continue from what you're looking at, not jump
@@ -929,6 +927,22 @@ namespace ChiptrackerNet.UI
             var orderIndex = Song.OrderList.IndexOf(_patternGrid.PatternIndex);
             if (orderIndex == -1)
                 orderIndex = 0;
+            if (!_audioCache.IsClean(Song))
+            {
+                // Live path has no count-in support (PlaybackEngine.Play
+                // takes no such parameter) -- a recorded take started here
+                // simply doesn't count in, unlike the cached path below.
+                _playbackEngine.Setup(Song, _audioPlayer);
+                _patternGrid.PlaybackState = _playbackEngine.State;
+                _playbackEngine.RowAdvanced += OnRowAdvanced;
+                _playbackEngine.Finished += OnPlaybackFinished;
+                _playbackEngine.Play(orderIndex, _patternGrid.SelectedRow);
+                return;
+            }
+            _cachedPlaybackEngine.Setup(Song, _audioPlayer, _audioCache);
+            _patternGrid.PlaybackState = _cachedPlaybackEngine.State;
+            _cachedPlaybackEngine.State.RowAdvanced += OnRowAdvanced;
+            _cachedPlaybackEngine.State.Finished += OnPlaybackFinished;
             // Recording with the count-in on: a bar of clicks first, then
             // the pass from the top of the pattern.
             var countingIn = _recording && _countIn;
@@ -958,8 +972,8 @@ namespace ChiptrackerNet.UI
 
             _playbackEngine.Setup(Song, _audioPlayer);
             _patternGrid.PlaybackState = _playbackEngine.State;
-            _playbackEngine.State.RowAdvanced += OnRowAdvanced;
-            _playbackEngine.State.Finished += OnPlaybackFinished;
+            _playbackEngine.RowAdvanced += OnRowAdvanced;
+            _playbackEngine.Finished += OnPlaybackFinished;
 
             var orderIndex = Song.OrderList.IndexOf(_patternGrid.PatternIndex);
             if (orderIndex == -1)
@@ -970,7 +984,7 @@ namespace ChiptrackerNet.UI
             // pattern would otherwise roll into the next one instead of
             // stopping, since a fresh pattern's row_index restarts at 0
             // and would never exceed bar_end on its own.
-            _playbackEngine.State.RowAdvanced += (currentOrderIndex, rowIndex) =>
+            _playbackEngine.RowAdvanced += (currentOrderIndex, rowIndex) =>
                 OnBarPreviewRowAdvanced(currentOrderIndex, rowIndex, startingOrderIndex, barEnd);
             _playbackEngine.Play(orderIndex, barStart);
         }
