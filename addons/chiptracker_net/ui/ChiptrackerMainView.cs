@@ -906,17 +906,18 @@ namespace ChiptrackerNet.UI
 
         internal bool IsPlaying() => PlayingCursor() != null;
 
-        // M8: Play always streams the pre-rendered cache (rebuilding it
-        // first, synchronously, if a dirtying edit landed since the last
-        // rebuild) rather than live-synthesizing. Bar preview is the one
-        // exception; it stays on _playbackEngine.
+        // M8: Play always streams the pre-rendered cache rather than
+        // live-synthesizing. Bar preview is the one exception; it stays on
+        // _playbackEngine. Play itself never rebuilds -- leaving Edit mode
+        // (OnEditModeToggled) is the only rebuild trigger, so pressing Play
+        // with a dirty cache streams whatever was last rendered (silence
+        // for a pattern that's never been rendered at all) rather than
+        // pausing to rebuild first.
         internal void OnPlayPressed()
         {
             EndTake(); // pressing Play starts a fresh pass, so a fresh take
             if (Song == null || Song.OrderList.Count == 0)
                 return;
-            if (!_audioCache.IsClean(Song))
-                RebuildCache();
             _cachedPlaybackEngine.Setup(Song, _audioPlayer, _audioCache);
             _patternGrid.PlaybackState = _cachedPlaybackEngine.State;
             _cachedPlaybackEngine.State.RowAdvanced += OnRowAdvanced;
