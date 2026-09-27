@@ -1,0 +1,6 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://addons/chiptracker_net/engine/AkaiMPKMini4.cs" id="1_akai"]
+
+[resource]
+script = ExtResource("1_akai")
